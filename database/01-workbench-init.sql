@@ -1,0 +1,66 @@
+-- 电商运营管理系统：工作台待办事项模块初始化脚本（草案）
+
+CREATE TABLE IF NOT EXISTS todo_new_arrival (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+  item_code VARCHAR(64) NOT NULL COMMENT '业务编码',
+  title VARCHAR(255) NOT NULL COMMENT '上新标题',
+  category_name VARCHAR(100) NOT NULL COMMENT '类目名称',
+  shop_name VARCHAR(100) NOT NULL COMMENT '店铺名称',
+  snapshot_url VARCHAR(500) NOT NULL COMMENT '快照主页链接',
+  arrival_time DATETIME NOT NULL COMMENT '上新时间',
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '状态：PENDING/PROCESSED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_item_code (item_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='竞品上新待办';
+
+CREATE TABLE IF NOT EXISTS todo_new_arrival_action (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+  new_arrival_id BIGINT NOT NULL COMMENT '上新记录ID',
+  action_type VARCHAR(20) NOT NULL COMMENT '动作：PUSH/TRACK/IGNORE',
+  operator_name VARCHAR(64) DEFAULT NULL COMMENT '操作人',
+  action_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+  KEY idx_new_arrival_id (new_arrival_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='竞品上新处理记录';
+
+CREATE TABLE IF NOT EXISTS competitor_monitor (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+  competitor_code VARCHAR(64) NOT NULL COMMENT '竞品编码',
+  competitor_name VARCHAR(255) NOT NULL COMMENT '竞品名称',
+  shop_name VARCHAR(100) NOT NULL COMMENT '店铺名称',
+  current_rank INT DEFAULT NULL COMMENT '当前销售排名',
+  track_status TINYINT NOT NULL DEFAULT 1 COMMENT '追踪状态：1追踪中 0停用',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_competitor_code (competitor_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='竞品监控主表';
+
+CREATE TABLE IF NOT EXISTS competitor_change_log (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+  competitor_id BIGINT NOT NULL COMMENT '竞品ID',
+  change_date DATE NOT NULL COMMENT '变化日期',
+  change_type VARCHAR(50) NOT NULL COMMENT '变化类型，如PRICE/SALES/ACTIVITY/IMAGE/COPY/RANK',
+  change_content VARCHAR(255) NOT NULL COMMENT '变化内容',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_competitor_id_date (competitor_id, change_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='竞品变化日志';
+
+CREATE TABLE IF NOT EXISTS product_operation_daily (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+  product_code VARCHAR(64) NOT NULL COMMENT '产品编码',
+  product_name VARCHAR(255) NOT NULL COMMENT '产品名称',
+  stat_date DATE NOT NULL COMMENT '统计日期',
+  sales_today DECIMAL(18,2) DEFAULT NULL COMMENT '当日销售数据',
+  sales_7d_avg DECIMAL(18,2) DEFAULT NULL COMMENT '七日平均销售数据',
+  sales_last_week DECIMAL(18,2) DEFAULT NULL COMMENT '上周同日销售数据',
+  traffic_today DECIMAL(18,2) DEFAULT NULL COMMENT '当日流量数据',
+  traffic_7d_avg DECIMAL(18,2) DEFAULT NULL COMMENT '七日平均流量数据',
+  traffic_last_week DECIMAL(18,2) DEFAULT NULL COMMENT '上周同日流量数据',
+  ads_today DECIMAL(18,2) DEFAULT NULL COMMENT '当日广告数据',
+  ads_7d_avg DECIMAL(18,2) DEFAULT NULL COMMENT '七日平均广告数据',
+  ads_last_week DECIMAL(18,2) DEFAULT NULL COMMENT '上周同日广告数据',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_product_date (product_code, stat_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='产品运营日统计';

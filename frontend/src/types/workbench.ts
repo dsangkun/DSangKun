@@ -1,3 +1,18 @@
+export interface ApiResponse<T> {
+  success: boolean
+  message: string
+  data: T
+}
+
+export interface WorkbenchOverview {
+  totalTodoCount: number
+  newArrivalCount: number
+  competitorChangeCount: number
+  operationProductCount: number
+}
+
+export type NewArrivalActionType = 'PUSH' | 'TRACK' | 'IGNORE'
+
 export interface NewArrivalItem {
   id: string
   title: string
