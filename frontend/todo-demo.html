@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电商运营管理系统 - 待办事项模块演示</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+    .sidebar {
+      width: 220px;
+      background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+      color: #fff;
+      padding: 24px 16px;
+    }
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 28px;
+    }
+    .menu-title {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .menu-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+      background: transparent;
+    }
+    .menu-item.active {
+      background: #2563eb;
+      color: #fff;
+      font-weight: 600;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .topbar {
+      height: 72px;
+      padding: 0 28px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #e5e7eb;
+      flex-shrink: 0;
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .subtext {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .content {
+      padding: 24px 28px 36px;
+      overflow-y: auto;
+    }
+    .section {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .section-desc {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .badge {
+      background: #eff6ff;
+      color: #2563eb;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .todo-list {
+      display: grid;
+      gap: 14px;
+    }
+    .todo-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 16px;
+      background: #fcfdff;
+      transition: all 0.2s ease;
+    }
+    .todo-card:hover {
+      border-color: #c7d2fe;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+    }
+    .todo-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .todo-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .todo-meta, .todo-link, .change-list, .product-name {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .todo-link a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-muted { background: #e5e7eb; color: #374151; }
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .change-tag {
+      display: inline-block;
+      padding: 5px 9px;
+      margin: 0 8px 8px 0;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .chart-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 16px;
+      background: #ffffff;
+    }
+    .chart-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .product-name {
+      margin-bottom: 14px;
+      color: #374151;
+      font-weight: 600;
+    }
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      height: 180px;
+      padding: 10px 0 0;
+    }
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+    }
+    .bar {
+      width: 48px;
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding-top: 8px;
+    }
+    .bar.today { background: #2563eb; }
+    .bar.avg { background: #10b981; }
+    .bar.lastweek { background: #f59e0b; }
+    .bar-label {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .empty-tip {
+      padding: 14px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      color: #64748b;
+      font-size: 13px;
+      background: #f8fafc;
+    }
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .content { padding: 16px; }
+      .topbar { padding: 0 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">电商运营管理系统</div>
+      <div class="menu-title">导航</div>
+      <div class="menu-item">系统主页</div>
+      <div class="menu-item active">工作台</div>
+      <div class="menu-item">商品中心</div>
+      <div class="menu-item">竞品中心</div>
+      <div class="menu-item">数据分析</div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>工作台</h1>
+          <div class="subtext">展示当前运营今日待办事项（演示页面，静态数据）</div>
+        </div>
+        <div class="badge">今日待办 8 项</div>
+      </div>
+
+      <div class="content">
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <div class="section-title">板块1：竞品上新信息</div>
+              <div class="section-desc">每条信息处理后立即从页面消失</div>
+            </div>
+            <div class="badge" id="newProductCount">3 条待处理</div>
+          </div>
+
+          <div class="todo-list" id="newProductList">
+            <div class="todo-card" data-card>
+              <div class="todo-top">
+                <div>
+                  <div class="todo-title">竞品 A 新上架：便携咖啡机 Pro</div>
+                  <div class="todo-meta">上新时间：09:12 ｜ 类目：厨房小家电 ｜ 店铺：竞品旗舰店A</div>
+                  <div class="todo-link">快照主页链接：<a href="#">https://snapshot.example.com/product/A001</a></div>
+                </div>
+                <div class="badge">新品</div>
+              </div>
+              <div class="actions">
+                <button class="btn-primary" onclick="handleTodo(this)">信息推送</button>
+                <button class="btn-warning" onclick="handleTodo(this)">追踪</button>
+                <button class="btn-muted" onclick="handleTodo(this)">忽略</button>
+              </div>
+            </div>
+
+            <div class="todo-card" data-card>
+              <div class="todo-top">
+                <div>
+                  <div class="todo-title">竞品 B 新上架：无叶挂脖风扇 Lite</div>
+                  <div class="todo-meta">上新时间：10:03 ｜ 类目：季节电器 ｜ 店铺：竞品旗舰店B</div>
+                  <div class="todo-link">快照主页链接：<a href="#">https://snapshot.example.com/product/B014</a></div>
+                </div>
+                <div class="badge">新品</div>
+              </div>
+              <div class="actions">
+                <button class="btn-primary" onclick="handleTodo(this)">信息推送</button>
+                <button class="btn-warning" onclick="handleTodo(this)">追踪</button>
+                <button class="btn-muted" onclick="handleTodo(this)">忽略</button>
+              </div>
+            </div>
+
+            <div class="todo-card" data-card>
+              <div class="todo-top">
+                <div>
+                  <div class="todo-title">竞品 C 新上架：桌面空气循环扇 Mini</div>
+                  <div class="todo-meta">上新时间：10:48 ｜ 类目：家居电器 ｜ 店铺：竞品旗舰店C</div>
+                  <div class="todo-link">快照主页链接：<a href="#">https://snapshot.example.com/product/C102</a></div>
+                </div>
+                <div class="badge">新品</div>
+              </div>
+              <div class="actions">
+                <button class="btn-primary" onclick="handleTodo(this)">信息推送</button>
+                <button class="btn-warning" onclick="handleTodo(this)">追踪</button>
+                <button class="btn-muted" onclick="handleTodo(this)">忽略</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <div class="section-title">板块2：竞品监控</div>
+              <div class="section-desc">仅展示当日有变化的已追踪竞品</div>
+            </div>
+            <div class="badge">今日变化 3 项</div>
+          </div>
+
+          <div class="monitor-grid">
+            <div class="todo-card">
+              <div class="todo-title">竞品：咖啡机旗舰款 X9</div>
+              <div class="todo-meta">店铺：竞品旗舰店A ｜ 当前销售排名：12</div>
+              <div class="change-list" style="margin-top: 12px;">
+                <span class="change-tag">价格：¥399 → ¥369</span>
+                <span class="change-tag">活动：新增满300减30</span>
+                <span class="change-tag">销量：日增 +126</span>
+              </div>
+            </div>
+
+            <div class="todo-card">
+              <div class="todo-title">竞品：挂脖风扇 AirCool S</div>
+              <div class="todo-meta">店铺：竞品旗舰店B ｜ 当前销售排名：28</div>
+              <div class="change-list" style="margin-top: 12px;">
+                <span class="change-tag">主图：已更新</span>
+                <span class="change-tag">文案：卖点描述调整</span>
+                <span class="change-tag">销量：日增 +84</span>
+              </div>
+            </div>
+
+            <div class="todo-card">
+              <div class="todo-title">竞品：空气循环扇 Pro Max</div>
+              <div class="todo-meta">店铺：竞品旗舰店C ｜ 当前销售排名：7</div>
+              <div class="change-list" style="margin-top: 12px;">
+                <span class="change-tag">价格：¥259 → ¥279</span>
+                <span class="change-tag">活动：取消店铺券</span>
+                <span class="change-tag">排名：11 → 7</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <div class="section-title">板块3：运营数据</div>
+              <div class="section-desc">按产品展示销售、流量、广告三类对比数据</div>
+            </div>
+            <div class="badge">柱状图对比</div>
+          </div>
+
+          <div class="data-grid">
+            <div class="chart-card">
+              <div class="chart-title">销售数据</div>
+              <div class="product-name">产品：智能咖啡机 K1</div>
+              <div class="bars">
+                <div class="bar-group">
+                  <div class="bar today" style="height: 138px;">860</div>
+                  <div class="bar-label">当日数据</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar avg" style="height: 112px;">695</div>
+                  <div class="bar-label">七日平均</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar lastweek" style="height: 124px;">780</div>
+                  <div class="bar-label">上周同日</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-title">流量数据</div>
+              <div class="product-name">产品：智能咖啡机 K1</div>
+              <div class="bars">
+                <div class="bar-group">
+                  <div class="bar today" style="height: 146px;">12k</div>
+                  <div class="bar-label">当日数据</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar avg" style="height: 118px;">9.7k</div>
+                  <div class="bar-label">七日平均</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar lastweek" style="height: 130px;">10.8k</div>
+                  <div class="bar-label">上周同日</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-title">广告数据</div>
+              <div class="product-name">产品：智能咖啡机 K1</div>
+              <div class="bars">
+                <div class="bar-group">
+                  <div class="bar today" style="height: 120px;">3.4k</div>
+                  <div class="bar-label">当日数据</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar avg" style="height: 96px;">2.8k</div>
+                  <div class="bar-label">七日平均</div>
+                </div>
+                <div class="bar-group">
+                  <div class="bar lastweek" style="height: 106px;">3.0k</div>
+                  <div class="bar-label">上周同日</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;" class="empty-tip">
+            演示说明：当前页面使用静态模拟数据，重点体现三大板块布局、工作台滚动结构、板块二的“仅展示变化项”规则，以及板块一的“处理后消失”交互。
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function handleTodo(button) {
+      const card = button.closest('[data-card]');
+      if (card) {
+        card.remove();
+        updateCount();
+      }
+    }
+
+    function updateCount() {
+      const count = document.querySelectorAll('#newProductList [data-card]').length;
+      const countNode = document.getElementById('newProductCount');
+      countNode.textContent = count + ' 条待处理';
+
+      if (count === 0) {
+        document.getElementById('newProductList').innerHTML = '<div class="empty-tip">当前没有待处理的竞品上新信息。</div>';
+      }
+    }
+  </script>
+</body>
+</html>
