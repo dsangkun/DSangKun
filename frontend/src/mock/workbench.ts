@@ -44,6 +44,54 @@ export const newArrivalMock: NewArrivalItem[] = [
     category: '家居电器',
     shop: '竞品旗舰店C',
     snapshotUrl: 'https://snapshot.example.com/product/C102'
+  },
+  {
+    id: 'D208',
+    title: '竞品 D 新上架：儿童收纳架 Plus',
+    time: '11:05',
+    category: '儿童家具',
+    shop: '竞品旗舰店D',
+    snapshotUrl: 'https://snapshot.example.com/product/D208'
+  },
+  {
+    id: 'E315',
+    title: '竞品 E 新上架：可折叠游戏围栏',
+    time: '11:17',
+    category: '母婴用品',
+    shop: '竞品旗舰店E',
+    snapshotUrl: 'https://snapshot.example.com/product/E315'
+  },
+  {
+    id: 'F420',
+    title: '竞品 F 新上架：玩具分类收纳柜 Max',
+    time: '11:43',
+    category: '儿童家具',
+    shop: '竞品旗舰店F',
+    snapshotUrl: 'https://snapshot.example.com/product/F420'
+  },
+  {
+    id: 'G517',
+    title: '竞品 G 新上架：带书架组合式收纳柜',
+    time: '12:08',
+    category: '儿童家具',
+    shop: '竞品旗舰店G',
+    snapshotUrl: 'https://snapshot.example.com/product/G517'
+  },
+  {
+    id: 'H633',
+    title: '竞品 H 新上架：木质九格玩具柜',
+    time: '12:26',
+    category: '家居收纳',
+    shop: '竞品旗舰店H',
+    snapshotUrl: 'https://snapshot.example.com/product/H633'
+  },
+  {
+    id: 'J744',
+    title: '竞品 J 新上架：多功能儿童书架收纳一体柜',
+    time: '12:42',
+    category: '儿童家具',
+    shop: '竞品旗舰店J',
+    snapshotUrl: 'https://snapshot.example.com/product/J744'
   }
 ]
 
@@ -68,6 +116,48 @@ export const competitorChangeMock: CompetitorChangeItem[] = [
     shop: '竞品旗舰店C',
     rank: '7',
     changes: ['价格：¥259 → ¥279', '活动：取消店铺券', '排名：11 → 7']
+  },
+  {
+    id: 'TSO',
+    name: 'Toy Storage Organizer Plus',
+    shop: '竞品旗舰店D',
+    rank: '16',
+    changes: ['价格：$89.99 → $84.99', '评价：新增 2 条差评', '广告：加大 SP 投放']
+  },
+  {
+    id: 'BPF',
+    name: 'Baby Play Fence Lite',
+    shop: '竞品旗舰店E',
+    rank: '23',
+    changes: ['排名：31 → 23', '主图：替换为场景图', '活动：新增 coupon']
+  },
+  {
+    id: 'KSR',
+    name: 'Kids Shelf Rack 3-Tier',
+    shop: '竞品旗舰店F',
+    rank: '14',
+    changes: ['价格：$72.99 → $76.99', '文案：新增 Montessori 关键词', '销量：日增 +57']
+  },
+  {
+    id: 'WBO',
+    name: 'Wooden Book Organizer',
+    shop: '竞品旗舰店G',
+    rank: '19',
+    changes: ['活动：取消 10% OFF', '流量：广告点击上升', '排名：17 → 19']
+  },
+  {
+    id: 'NBS',
+    name: '9-Bin Storage Cabinet',
+    shop: '竞品旗舰店H',
+    rank: '11',
+    changes: ['价格：$119.99 → $109.99', '评价：新增 11 条评论', '销量：日增 +92']
+  },
+  {
+    id: 'MGC',
+    name: 'Multi-Grid Toy Cabinet',
+    shop: '竞品旗舰店J',
+    rank: '26',
+    changes: ['主图：增加细节图', '广告：新增视频广告', '价格：保持不变']
   }
 ]
 

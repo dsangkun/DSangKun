@@ -12,10 +12,10 @@ import {
   postNewArrivalAction
 } from '../api/workbench'
 import { competitorChangeMock, newArrivalMock, operationDataMock } from '../mock/workbench'
-import type { NewArrivalActionType, ProductOperationItem, WorkbenchOverview } from '../types/workbench'
+import type { CompetitorChangeItem, NewArrivalActionType, NewArrivalItem, ProductOperationItem, WorkbenchOverview } from '../types/workbench'
 
-const newArrivalItems = ref([...newArrivalMock])
-const competitorItems = ref(competitorChangeMock)
+const newArrivalItems = ref<NewArrivalItem[]>([...newArrivalMock])
+const competitorItems = ref<CompetitorChangeItem[]>(competitorChangeMock)
 const operationItems = ref<ProductOperationItem[]>(operationDataMock)
 const overview = ref<WorkbenchOverview>({
   totalTodoCount: newArrivalMock.length + competitorChangeMock.length + operationDataMock.length,
@@ -39,12 +39,22 @@ const syncOverview = () => {
   }
 }
 
+const mergeListById = <T extends { id: string }>(mockList: T[], incoming: T[]) => {
+  if (!Array.isArray(incoming) || incoming.length === 0) {
+    return mockList
+  }
+
+  const merged = mockList.map((item) => incoming.find((candidate) => candidate.id === item.id) ?? item)
+  const extras = incoming.filter((item) => !mockList.some((mockItem) => mockItem.id === item.id))
+  return [...merged, ...extras]
+}
+
 const mergeOperationData = (incoming: ProductOperationItem[]) => {
   if (!Array.isArray(incoming) || incoming.length === 0) {
     return operationDataMock
   }
 
-  return operationDataMock.map((mockItem) => {
+  const merged = operationDataMock.map((mockItem) => {
     const matched = incoming.find((item) => item.id === mockItem.id || item.productName === mockItem.productName)
 
     if (!matched) {
@@ -58,6 +68,12 @@ const mergeOperationData = (incoming: ProductOperationItem[]) => {
       ads: matched.ads ?? mockItem.ads
     }
   })
+
+  const extras = incoming.filter(
+    (item) => !operationDataMock.some((mockItem) => mockItem.id === item.id || mockItem.productName === item.productName)
+  )
+
+  return [...merged, ...extras]
 }
 
 const loadWorkbenchData = async () => {
@@ -73,10 +89,11 @@ const loadWorkbenchData = async () => {
     ])
 
     overview.value = overviewData
-    newArrivalItems.value = newArrivals
-    competitorItems.value = competitorChanges
+    newArrivalItems.value = mergeListById(newArrivalMock, newArrivals)
+    competitorItems.value = mergeListById(competitorChangeMock, competitorChanges)
     operationItems.value = mergeOperationData(operationData)
     usingMockData.value = false
+    syncOverview()
   } catch (error) {
     console.error('加载工作台接口失败，已回退到 Mock 数据：', error)
     loadError.value = '后端接口暂不可用，当前已自动回退到 Mock 数据。'
@@ -117,26 +134,16 @@ onMounted(() => {
 
 <template>
   <div class="layout">
-    <aside class="sidebar">
-      <div class="logo">电商运营管理系统</div>
-      <div class="menu-title">导航</div>
-      <div class="menu-item">系统主页</div>
-      <div class="menu-item active">工作台</div>
-      <div class="menu-item">商品中心</div>
-      <div class="menu-item">竞品中心</div>
-      <div class="menu-item">数据分析</div>
-    </aside>
-
-    <main class="main-layout">
-      <header class="topbar">
+    <main class="main-layout full-width-layout">
+      <header class="topbar compact-topbar">
         <div>
-          <h1 class="page-title">工作台</h1>
+          <h1 class="page-title">运营数据展示模块</h1>
           <div class="subtext">当前阶段：先完成 Boss 预期的展示页{{ usingMockData ? '（页面以 Mock 展示数据为主）' : '（已连接后端接口）' }}</div>
         </div>
         <div class="badge">今日待办 {{ totalTodoCount }} 项</div>
       </header>
 
-      <div class="content-area">
+      <div class="content-area wide-content-area">
         <div v-if="loading" class="empty-tip margin-bottom-16">正在加载工作台数据...</div>
         <div v-if="loadError" class="empty-tip margin-bottom-16">{{ loadError }}</div>
 
