@@ -52,6 +52,27 @@ export interface ProductMetricBlock {
   targetNote: string
 }
 
+export interface ProductAdActivityItem {
+  source: 'SBV' | 'SP'
+  campaignName: string
+  impressions: string
+  clicks: string
+  ctr: string
+  cpc: string
+  cost: string
+  sales: string
+  acos: string
+  orders: string
+  cvr: string
+}
+
+export interface ProductAdsBlock {
+  title: string
+  highlights: MetricHighlightItem[]
+  activityList: ProductAdActivityItem[]
+  sourceNote: string
+}
+
 export interface ProductReviewInfo {
   score: string
   reviewCount: string
@@ -77,5 +98,5 @@ export interface ProductOperationItem {
   review: ProductReviewInfo
   sales: ProductMetricBlock
   traffic: ProductMetricBlock
-  ads: ProductMetricBlock
+  ads: ProductAdsBlock
 }

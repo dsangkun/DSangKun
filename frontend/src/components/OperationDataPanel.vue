@@ -268,47 +268,61 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                 </div>
               </section>
 
-              <section class="inline-section-card metric-section-card">
+              <section class="inline-section-card ads-section-card">
                 <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'ads')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ item.ads.title }}</div>
-                    <div class="section-toggle-desc horizontal-desc">{{ getMetricPreview(item.ads) }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ item.ads.sourceNote }}</div>
                   </div>
                   <div class="section-toggle-right compact-toggle-right">
                     <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'ads') }">⌄</span>
                   </div>
                 </button>
 
-                <div class="outer-chart-panel">
-                  <div class="outer-chart-title">柱状图展示</div>
-                  <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
-                  <div class="mini-bars dense-bars outer-dense-bars">
-                    <div v-for="bar in item.ads.compareList" :key="bar.label" class="mini-bar-group dense-bar-group">
-                      <div class="mini-bar dense-bar" :class="`bar-${bar.type}`" :style="{ height: `${Math.max(bar.height + 34, 92)}px` }">
-                        <span class="dense-bar-value">{{ bar.value }}</span>
-                      </div>
-                      <div class="mini-bar-label dense-bar-label">{{ bar.label }}</div>
+                <div class="ads-summary-panel">
+                  <div class="ads-summary-grid">
+                    <div v-for="highlight in item.ads.highlights" :key="highlight.label" class="ads-summary-item" :class="highlight.status">
+                      <div class="ads-summary-label">{{ highlight.label }}</div>
+                      <div class="ads-summary-value">{{ highlight.value }}</div>
+                      <div class="ads-summary-note">{{ highlight.note }}</div>
                     </div>
                   </div>
                 </div>
 
                 <div v-if="isExpanded(item.id, 'ads')" class="section-expand-panel">
-                  <div class="detail-data-table metric-data-table">
-                    <div class="detail-table-header">广告数据明细</div>
-                    <div class="detail-table-row header-row metric-header-row">
-                      <div>指标</div>
-                      <div>数值</div>
-                      <div>说明</div>
-                    </div>
-                    <div v-for="highlight in item.ads.highlights" :key="highlight.label" class="detail-table-row metric-row">
-                      <div>{{ highlight.label }}</div>
-                      <div>{{ highlight.value }}</div>
-                      <div>{{ highlight.note || '-' }}</div>
-                    </div>
-                    <div class="detail-table-row metric-row target-row">
-                      <div>目标值</div>
-                      <div>{{ item.ads.targetValue }}</div>
-                      <div>{{ item.ads.targetNote }}</div>
+                  <div class="detail-table-tip">展示口径：SBV 按单产品表取明细并剔除首行汇总；SP 按广告ASIN筛选后合并到同一产品。</div>
+                  <div class="detail-table-scroll">
+                    <div class="detail-data-table ads-activity-table">
+                      <div class="detail-table-header">广告活动明细</div>
+                      <div class="detail-table-row header-row ads-activity-row ads-activity-header-row">
+                        <div>广告活动名称</div>
+                        <div>曝光量</div>
+                        <div>点击量</div>
+                        <div>点击率 (CTR)</div>
+                        <div>单次点击成本 (CPC)</div>
+                        <div>花费</div>
+                        <div>总销售额</div>
+                        <div>广告投入产出比</div>
+                        <div>总订单数</div>
+                        <div>转化率 (CVR)</div>
+                      </div>
+                      <div
+                        v-for="activity in item.ads.activityList"
+                        :key="`${activity.source}-${activity.campaignName}`"
+                        class="detail-table-row ads-activity-row"
+                        :class="`row-source-${activity.source.toLowerCase()}`"
+                      >
+                        <div>{{ activity.campaignName }}</div>
+                        <div>{{ activity.impressions }}</div>
+                        <div>{{ activity.clicks }}</div>
+                        <div>{{ activity.ctr }}</div>
+                        <div>{{ activity.cpc }}</div>
+                        <div>{{ activity.cost }}</div>
+                        <div>{{ activity.sales }}</div>
+                        <div>{{ activity.acos }}</div>
+                        <div>{{ activity.orders }}</div>
+                        <div>{{ activity.cvr }}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
