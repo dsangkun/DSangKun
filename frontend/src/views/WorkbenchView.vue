@@ -63,9 +63,12 @@ const mergeOperationData = (incoming: ProductOperationItem[]) => {
 
     return {
       ...mockItem,
+      ...matched,
       sales: matched.sales ?? mockItem.sales,
       traffic: matched.traffic ?? mockItem.traffic,
-      ads: matched.ads ?? mockItem.ads
+      spAds: matched.spAds ?? mockItem.spAds,
+      sbvAds: matched.sbvAds ?? mockItem.sbvAds,
+      review: matched.review ?? mockItem.review
     }
   })
 
@@ -155,7 +158,7 @@ onMounted(() => {
           <CompetitorMonitorList :items="competitorItems" />
         </WorkbenchSection>
 
-        <WorkbenchSection title="板块3：运营数据展示模块" desc="每个产品以卡片方式展示基础信息、评价、销售、流量、广告五类信息" badge="产品卡片展示">
+        <WorkbenchSection title="板块3：运营数据展示模块" desc="每个产品以卡片方式展示基础信息、评价、销售、流量、SP广告、SBV广告六类信息" badge="产品卡片展示">
           <OperationDataPanel :items="operationItems" />
           <div class="empty-tip margin-top-16">
             {{ usingMockData ? '当前优先完成展示效果，模块3使用 Mock 数据进行页面验证。' : '当前页面已接入后端接口，正在进行联调验证。' }}

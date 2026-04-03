@@ -98,5 +98,6 @@ export interface ProductOperationItem {
   review: ProductReviewInfo
   sales: ProductMetricBlock
   traffic: ProductMetricBlock
-  ads: ProductAdsBlock
+  spAds: ProductAdsBlock
+  sbvAds: ProductAdsBlock
 }

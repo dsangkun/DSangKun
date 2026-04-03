@@ -23,11 +23,12 @@ const buildMetricBlock = (
 })
 
 const buildAdsBlock = (
+  title: string,
   highlights: MetricHighlightItem[],
   activityList: ProductAdActivityItem[],
   sourceNote: string
 ): ProductAdsBlock => ({
-  title: '广告数据',
+  title,
   highlights,
   activityList,
   sourceNote
@@ -57,7 +58,7 @@ export const competitorChangeMock: CompetitorChangeItem[] = [
   { id: 'MGC', name: 'Multi-Grid Toy Cabinet', shop: '竞品旗舰店J', rank: '26', changes: ['主图：增加细节图', '广告：新增视频广告', '价格：保持不变'] }
 ]
 
-const whiteBasinAdsActivity: ProductAdActivityItem[] = [
+const whiteBasinSpAds: ProductAdActivityItem[] = [
   { source: 'SP', campaignName: '广toy storage organizer拾贰', impressions: '6,137', clicks: '60', ctr: '0.98%', cpc: '$0.98', cost: '$58.96', sales: '$469.94', acos: '12.55%', orders: '6', cvr: '10.00%' },
   { source: 'SP', campaignName: '广toy storage拾贰', impressions: '4,005', clicks: '26', ctr: '0.65%', cpc: '$0.79', cost: '$20.60', sales: '$184.98', acos: '11.14%', orders: '2', cvr: '7.69%' },
   { source: 'SP', campaignName: '广toy organizer拾贰', impressions: '4,600', clicks: '25', ctr: '0.54%', cpc: '$0.83', cost: '$20.77', sales: '$74.99', acos: '27.70%', orders: '1', cvr: '4.00%' },
@@ -66,28 +67,47 @@ const whiteBasinAdsActivity: ProductAdActivityItem[] = [
   { source: 'SP', campaignName: '广kids toy storage organizer拾贰', impressions: '2,360', clicks: '30', ctr: '1.27%', cpc: '$1.04', cost: '$31.13', sales: '$74.99', acos: '41.51%', orders: '1', cvr: '3.33%' },
   { source: 'SP', campaignName: 'ASIN广告拾贰', impressions: '5,380', clicks: '37', ctr: '0.69%', cpc: '$0.85', cost: '$31.46', sales: '$464.94', acos: '6.77%', orders: '6', cvr: '16.22%' },
   { source: 'SP', campaignName: '广 toy organizers and storage 拾贰', impressions: '5,150', clicks: '36', ctr: '0.70%', cpc: '$0.84', cost: '$30.35', sales: '$154.98', acos: '19.58%', orders: '2', cvr: '5.56%' },
-  { source: 'SP', campaignName: '精kids toy organizer拾贰', impressions: '5,161', clicks: '18', ctr: '0.35%', cpc: '$1.07', cost: '$19.20', sales: '$0.00', acos: '-', orders: '0', cvr: '0.00%' },
+  { source: 'SP', campaignName: '精kids toy organizer拾贰', impressions: '5,161', clicks: '18', ctr: '0.35%', cpc: '$1.07', cost: '$19.20', sales: '$0.00', acos: '-', orders: '0', cvr: '0.00%' }
+]
+
+const whiteBasinSbvAds: ProductAdActivityItem[] = [
   { source: 'SBV', campaignName: 'SBV-toy organizer-新款', impressions: '3,099', clicks: '44', ctr: '1.42%', cpc: '$0.77', cost: '$33.88', sales: '$244.97', acos: '13.83%', orders: '3', cvr: '6.82%' },
   { source: 'SBV', campaignName: 'SBV-toy storage-新款', impressions: '1,717', clicks: '24', ctr: '1.40%', cpc: '$0.78', cost: '$18.76', sales: '$0.00', acos: '有花费无销售额', orders: '0', cvr: '0.00%' },
   { source: 'SBV', campaignName: 'SBV-toy storage organizer-新款', impressions: '4,625', clicks: '58', ctr: '1.25%', cpc: '$0.86', cost: '$50.06', sales: '$334.96', acos: '14.95%', orders: '4', cvr: '6.90%' }
 ]
 
-const defaultAdsActivity = (asin: string): ProductAdActivityItem[] => [
-  { source: 'SBV', campaignName: `${asin}-SBV-品牌词`, impressions: '3,280', clicks: '34', ctr: '1.04%', cpc: '$0.86', cost: '$29.24', sales: '$229.97', acos: '12.72%', orders: '3', cvr: '8.82%' },
+const defaultSpAdsActivity = (asin: string): ProductAdActivityItem[] => [
   { source: 'SP', campaignName: `${asin}-SP-核心词`, impressions: '5,460', clicks: '48', ctr: '0.88%', cpc: '$0.79', cost: '$37.92', sales: '$304.96', acos: '12.43%', orders: '4', cvr: '8.33%' },
   { source: 'SP', campaignName: `${asin}-SP-自动`, impressions: '2,140', clicks: '17', ctr: '0.79%', cpc: '$0.68', cost: '$11.56', sales: '$74.99', acos: '15.42%', orders: '1', cvr: '5.88%' }
 ]
 
-const defaultAdsHighlights: MetricHighlightItem[] = [
-  { label: '曝光量', value: '10,880', note: 'SBV + SP 汇总曝光', status: 'neutral' },
-  { label: '点击量', value: '99', note: 'SBV + SP 汇总点击', status: 'neutral' },
-  { label: 'CTR', value: '0.91%', note: '总点击 / 总曝光', status: 'neutral' },
-  { label: 'CPC', value: '$0.80', note: '总花费 / 总点击', status: 'neutral' },
-  { label: '花费', value: '$78.72', note: 'SBV + SP 合并后总花费', status: 'neutral' },
-  { label: '总销售额', value: '$609.92', note: '汇总口径统一为总销售额', status: 'good' },
-  { label: 'ACOS', value: '12.91%', note: '合并口径展示', status: 'good' },
-  { label: '总订单数', value: '8', note: 'SBV + SP 合并订单', status: 'neutral' },
-  { label: 'CVR', value: '8.10%', note: '点击到订单转化', status: 'good' }
+const defaultSbvAdsActivity = (asin: string): ProductAdActivityItem[] => [
+  { source: 'SBV', campaignName: `${asin}-SBV-品牌词`, impressions: '3,280', clicks: '34', ctr: '1.04%', cpc: '$0.86', cost: '$29.24', sales: '$229.97', acos: '12.72%', orders: '3', cvr: '8.82%' },
+  { source: 'SBV', campaignName: `${asin}-SBV-泛词`, impressions: '1,920', clicks: '22', ctr: '1.15%', cpc: '$0.81', cost: '$17.82', sales: '$149.98', acos: '11.88%', orders: '2', cvr: '9.09%' }
+]
+
+const defaultSpAdsHighlights: MetricHighlightItem[] = [
+  { label: '曝光量', value: '8,400', note: 'SP 汇总曝光', status: 'neutral' },
+  { label: '点击量', value: '65', note: 'SP 汇总点击', status: 'neutral' },
+  { label: 'CTR', value: '0.77%', note: 'SP 点击率', status: 'neutral' },
+  { label: 'CPC', value: '$0.76', note: 'SP 平均点击花费', status: 'neutral' },
+  { label: '花费', value: '$49.48', note: 'SP 总花费', status: 'neutral' },
+  { label: '总销售额', value: '$379.95', note: 'SP 总销售额', status: 'good' },
+  { label: 'ACOS', value: '13.02%', note: 'SP 整体 ACOS', status: 'good' },
+  { label: '总订单数', value: '5', note: 'SP 总订单', status: 'neutral' },
+  { label: 'CVR', value: '7.69%', note: 'SP 转化率', status: 'good' }
+]
+
+const defaultSbvAdsHighlights: MetricHighlightItem[] = [
+  { label: '曝光量', value: '5,200', note: 'SBV 汇总曝光', status: 'neutral' },
+  { label: '点击量', value: '56', note: 'SBV 汇总点击', status: 'neutral' },
+  { label: 'CTR', value: '1.08%', note: 'SBV 点击率', status: 'good' },
+  { label: 'CPC', value: '$0.84', note: 'SBV 平均点击花费', status: 'neutral' },
+  { label: '花费', value: '$47.06', note: 'SBV 总花费', status: 'neutral' },
+  { label: '总销售额', value: '$379.95', note: 'SBV 总销售额', status: 'good' },
+  { label: 'ACOS', value: '12.39%', note: 'SBV 整体 ACOS', status: 'good' },
+  { label: '总订单数', value: '5', note: 'SBV 总订单', status: 'neutral' },
+  { label: 'CVR', value: '8.93%', note: 'SBV 转化率', status: 'good' }
 ]
 
 export const operationDataMock: ProductOperationItem[] = [
@@ -134,17 +154,28 @@ export const operationDataMock: ProductOperationItem[] = [
       { label: '广告流量', value: '406', note: 'SP 280 / SBV 126', status: 'neutral' },
       { label: 'Listing转化', value: '4.59%', note: '承接仍可优化', status: 'warn' }
     ], '1,500', '流量目标：1,500 UV / 转化率 4.8%'),
-    ads: buildAdsBlock([
-      { label: '曝光量', value: '48,527', note: 'SBV + SP 汇总曝光', status: 'neutral' },
-      { label: '点击量', value: '406', note: 'SBV + SP 汇总点击', status: 'neutral' },
-      { label: 'CTR', value: '0.84%', note: '总点击 / 总曝光', status: 'neutral' },
-      { label: 'CPC', value: '$0.90', note: '总花费 / 总点击', status: 'neutral' },
-      { label: '花费', value: '$364.02', note: 'SBV + SP 合并后当日总花费', status: 'warn' },
-      { label: '总销售额', value: '$2,309.71', note: '与案例合并口径一致', status: 'good' },
-      { label: 'ACOS', value: '15.76%', note: '合并后整体投产可控', status: 'good' },
-      { label: '总订单数', value: '29', note: 'SBV 与 SP 合并订单', status: 'neutral' },
-      { label: 'CVR', value: '7.14%', note: '点击到订单转化', status: 'good' }
-    ], whiteBasinAdsActivity, '数据来源：SBV 单产品广告表 + SP 广告报告按广告ASIN筛选合并')
+    spAds: buildAdsBlock('SP广告', [
+      { label: '曝光量', value: '38,086', note: 'SP 汇总曝光', status: 'neutral' },
+      { label: '点击量', value: '280', note: 'SP 汇总点击', status: 'neutral' },
+      { label: 'CTR', value: '0.74%', note: 'SP 点击率', status: 'neutral' },
+      { label: 'CPC', value: '$0.86', note: 'SP 平均点击花费', status: 'neutral' },
+      { label: '花费', value: '$260.55', note: 'SP 总花费', status: 'warn' },
+      { label: '总销售额', value: '$1,729.78', note: 'SP 总销售额', status: 'good' },
+      { label: 'ACOS', value: '15.06%', note: 'SP 整体 ACOS', status: 'good' },
+      { label: '总订单数', value: '22', note: 'SP 总订单', status: 'neutral' },
+      { label: 'CVR', value: '7.86%', note: 'SP 转化率', status: 'good' }
+    ], whiteBasinSpAds, 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
+    sbvAds: buildAdsBlock('SBV广告', [
+      { label: '曝光量', value: '9,441', note: 'SBV 汇总曝光', status: 'neutral' },
+      { label: '点击量', value: '126', note: 'SBV 汇总点击', status: 'neutral' },
+      { label: 'CTR', value: '1.33%', note: 'SBV 点击率', status: 'good' },
+      { label: 'CPC', value: '$0.82', note: 'SBV 平均点击花费', status: 'neutral' },
+      { label: '花费', value: '$102.70', note: 'SBV 总花费', status: 'neutral' },
+      { label: '总销售额', value: '$579.93', note: 'SBV 总销售额', status: 'good' },
+      { label: 'ACOS', value: '17.71%', note: 'SBV 整体 ACOS', status: 'warn' },
+      { label: '总订单数', value: '7', note: 'SBV 总订单', status: 'neutral' },
+      { label: 'CVR', value: '5.56%', note: 'SBV 转化率', status: 'neutral' }
+    ], whiteBasinSbvAds, 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
   },
   ...['P002', 'P003', 'P004', 'P005', 'P006', 'P007', 'P008'].map((id, index) => {
     const meta = [
@@ -200,7 +231,8 @@ export const operationDataMock: ProductOperationItem[] = [
         { label: '广告流量', value: '340', note: '待接真实数据', status: 'neutral' },
         { label: 'Listing转化', value: '4.85%', note: '待接真实数据', status: 'warn' }
       ], '1,150', '流量目标：待接真实数据'),
-      ads: buildAdsBlock(defaultAdsHighlights, defaultAdsActivity(meta[4]), '数据来源：SBV 单产品广告表 + SP 广告报告按广告ASIN筛选合并')
+      spAds: buildAdsBlock('SP广告', defaultSpAdsHighlights, defaultSpAdsActivity(meta[4]), 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
+      sbvAds: buildAdsBlock('SBV广告', defaultSbvAdsHighlights, defaultSbvAdsActivity(meta[4]), 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
     }
   })
 ]

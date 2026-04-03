@@ -3,7 +3,7 @@ import { computed, reactive } from 'vue'
 import type { ProductMetricBlock, ProductOperationItem } from '../types/workbench'
 
 type HealthLevel = 'good' | 'medium' | 'risk'
-type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'ads'
+type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'spAds' | 'sbvAds'
 
 const props = defineProps<{
   items: ProductOperationItem[]
@@ -20,9 +20,12 @@ const getLevelWeight = (level: HealthLevel) => {
 }
 
 const getCardLevel = (item: ProductOperationItem): HealthLevel => {
-  const highlightStatuses = [...item.sales.highlights, ...item.traffic.highlights, ...item.ads.highlights].map(
-    (highlight) => highlight.status ?? 'neutral'
-  )
+  const highlightStatuses = [
+    ...item.sales.highlights,
+    ...item.traffic.highlights,
+    ...item.spAds.highlights,
+    ...item.sbvAds.highlights
+  ].map((highlight) => highlight.status ?? 'neutral')
 
   if (highlightStatuses.includes('risk') || Number(item.review.badReviewCount) >= 3) {
     return 'risk'
@@ -67,7 +70,8 @@ const getSectionTitle = (section: ExpandSectionKey) => {
     review: '评价信息',
     sales: '销售数据',
     traffic: '流量数据',
-    ads: '广告数据'
+    spAds: 'SP广告',
+    sbvAds: 'SBV广告'
   }
 
   return titleMap[section]
@@ -140,38 +144,14 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                       <div>字段</div>
                       <div>数值</div>
                     </div>
-                    <div class="detail-table-row">
-                      <div>评分</div>
-                      <div>{{ item.review.score }}</div>
-                    </div>
-                    <div class="detail-table-row">
-                      <div>评论总数</div>
-                      <div>{{ item.review.reviewCount }}</div>
-                    </div>
-                    <div class="detail-table-row">
-                      <div>新增评论</div>
-                      <div>{{ item.review.newReviewCount }}</div>
-                    </div>
-                    <div class="detail-table-row">
-                      <div>新增差评</div>
-                      <div>{{ item.review.badReviewCount }}</div>
-                    </div>
-                    <div class="detail-table-row multi-line-row">
-                      <div>最新评论标题</div>
-                      <div>{{ item.review.latestTitle }}</div>
-                    </div>
-                    <div class="detail-table-row multi-line-row">
-                      <div>最新评论内容</div>
-                      <div>{{ item.review.latestContent }}</div>
-                    </div>
-                    <div class="detail-table-row">
-                      <div>评论时间</div>
-                      <div>{{ item.review.latestDate }}</div>
-                    </div>
-                    <div class="detail-table-row">
-                      <div>评论作者</div>
-                      <div>{{ item.review.latestAuthor }}</div>
-                    </div>
+                    <div class="detail-table-row"><div>评分</div><div>{{ item.review.score }}</div></div>
+                    <div class="detail-table-row"><div>评论总数</div><div>{{ item.review.reviewCount }}</div></div>
+                    <div class="detail-table-row"><div>新增评论</div><div>{{ item.review.newReviewCount }}</div></div>
+                    <div class="detail-table-row"><div>新增差评</div><div>{{ item.review.badReviewCount }}</div></div>
+                    <div class="detail-table-row multi-line-row"><div>最新评论标题</div><div>{{ item.review.latestTitle }}</div></div>
+                    <div class="detail-table-row multi-line-row"><div>最新评论内容</div><div>{{ item.review.latestContent }}</div></div>
+                    <div class="detail-table-row"><div>评论时间</div><div>{{ item.review.latestDate }}</div></div>
+                    <div class="detail-table-row"><div>评论作者</div><div>{{ item.review.latestAuthor }}</div></div>
                   </div>
                 </div>
               </section>
@@ -186,7 +166,6 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                     <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sales') }">⌄</span>
                   </div>
                 </button>
-
                 <div class="outer-chart-panel">
                   <div class="outer-chart-title">柱状图展示</div>
                   <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
@@ -199,25 +178,14 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                     </div>
                   </div>
                 </div>
-
                 <div v-if="isExpanded(item.id, 'sales')" class="section-expand-panel">
                   <div class="detail-data-table metric-data-table">
                     <div class="detail-table-header">销售数据明细</div>
-                    <div class="detail-table-row header-row metric-header-row">
-                      <div>指标</div>
-                      <div>数值</div>
-                      <div>说明</div>
-                    </div>
+                    <div class="detail-table-row header-row metric-header-row"><div>指标</div><div>数值</div><div>说明</div></div>
                     <div v-for="highlight in item.sales.highlights" :key="highlight.label" class="detail-table-row metric-row">
-                      <div>{{ highlight.label }}</div>
-                      <div>{{ highlight.value }}</div>
-                      <div>{{ highlight.note || '-' }}</div>
+                      <div>{{ highlight.label }}</div><div>{{ highlight.value }}</div><div>{{ highlight.note || '-' }}</div>
                     </div>
-                    <div class="detail-table-row metric-row target-row">
-                      <div>目标值</div>
-                      <div>{{ item.sales.targetValue }}</div>
-                      <div>{{ item.sales.targetNote }}</div>
-                    </div>
+                    <div class="detail-table-row metric-row target-row"><div>目标值</div><div>{{ item.sales.targetValue }}</div><div>{{ item.sales.targetNote }}</div></div>
                   </div>
                 </div>
               </section>
@@ -232,7 +200,6 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                     <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'traffic') }">⌄</span>
                   </div>
                 </button>
-
                 <div class="outer-chart-panel">
                   <div class="outer-chart-title">柱状图展示</div>
                   <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
@@ -245,83 +212,80 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                     </div>
                   </div>
                 </div>
-
                 <div v-if="isExpanded(item.id, 'traffic')" class="section-expand-panel">
                   <div class="detail-data-table metric-data-table">
                     <div class="detail-table-header">流量数据明细</div>
-                    <div class="detail-table-row header-row metric-header-row">
-                      <div>指标</div>
-                      <div>数值</div>
-                      <div>说明</div>
-                    </div>
+                    <div class="detail-table-row header-row metric-header-row"><div>指标</div><div>数值</div><div>说明</div></div>
                     <div v-for="highlight in item.traffic.highlights" :key="highlight.label" class="detail-table-row metric-row">
-                      <div>{{ highlight.label }}</div>
-                      <div>{{ highlight.value }}</div>
-                      <div>{{ highlight.note || '-' }}</div>
+                      <div>{{ highlight.label }}</div><div>{{ highlight.value }}</div><div>{{ highlight.note || '-' }}</div>
                     </div>
-                    <div class="detail-table-row metric-row target-row">
-                      <div>目标值</div>
-                      <div>{{ item.traffic.targetValue }}</div>
-                      <div>{{ item.traffic.targetNote }}</div>
+                    <div class="detail-table-row metric-row target-row"><div>目标值</div><div>{{ item.traffic.targetValue }}</div><div>{{ item.traffic.targetNote }}</div></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="inline-section-card ads-section-card">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'spAds')">
+                  <div class="section-toggle-main">
+                    <div class="section-toggle-title">{{ getSectionTitle('spAds') }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ item.spAds.sourceNote }}</div>
+                  </div>
+                  <div class="section-toggle-right compact-toggle-right">
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'spAds') }">⌄</span>
+                  </div>
+                </button>
+                <div class="ads-summary-panel">
+                  <div class="ads-summary-grid">
+                    <div v-for="highlight in item.spAds.highlights" :key="highlight.label" class="ads-summary-item" :class="highlight.status">
+                      <div class="ads-summary-label">{{ highlight.label }}</div>
+                      <div class="ads-summary-value">{{ highlight.value }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="isExpanded(item.id, 'spAds')" class="section-expand-panel">
+                  <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
+                  <div class="detail-table-scroll">
+                    <div class="detail-data-table ads-activity-table">
+                      <div class="detail-table-header">SP广告活动明细</div>
+                      <div class="detail-table-row header-row ads-activity-row ads-activity-header-row">
+                        <div>广告活动名称</div><div>曝光量</div><div>点击量</div><div>点击率 (CTR)</div><div>单次点击成本 (CPC)</div><div>花费</div><div>总销售额</div><div>广告投入产出比</div><div>总订单数</div><div>转化率 (CVR)</div>
+                      </div>
+                      <div v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`" class="detail-table-row ads-activity-row">
+                        <div>{{ activity.campaignName }}</div><div>{{ activity.impressions }}</div><div>{{ activity.clicks }}</div><div>{{ activity.ctr }}</div><div>{{ activity.cpc }}</div><div>{{ activity.cost }}</div><div>{{ activity.sales }}</div><div>{{ activity.acos }}</div><div>{{ activity.orders }}</div><div>{{ activity.cvr }}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </section>
 
               <section class="inline-section-card ads-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'ads')">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'sbvAds')">
                   <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ item.ads.title }}</div>
-                    <div class="section-toggle-desc horizontal-desc">{{ item.ads.sourceNote }}</div>
+                    <div class="section-toggle-title">{{ getSectionTitle('sbvAds') }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ item.sbvAds.sourceNote }}</div>
                   </div>
                   <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'ads') }">⌄</span>
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sbvAds') }">⌄</span>
                   </div>
                 </button>
-
                 <div class="ads-summary-panel">
                   <div class="ads-summary-grid">
-                    <div v-for="highlight in item.ads.highlights" :key="highlight.label" class="ads-summary-item" :class="highlight.status">
+                    <div v-for="highlight in item.sbvAds.highlights" :key="highlight.label" class="ads-summary-item" :class="highlight.status">
                       <div class="ads-summary-label">{{ highlight.label }}</div>
                       <div class="ads-summary-value">{{ highlight.value }}</div>
-                      <div class="ads-summary-note">{{ highlight.note }}</div>
                     </div>
                   </div>
                 </div>
-
-                <div v-if="isExpanded(item.id, 'ads')" class="section-expand-panel">
-                  <div class="detail-table-tip">展示口径：SBV 按单产品表取明细并剔除首行汇总；SP 按广告ASIN筛选后合并到同一产品。</div>
+                <div v-if="isExpanded(item.id, 'sbvAds')" class="section-expand-panel">
+                  <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
                   <div class="detail-table-scroll">
                     <div class="detail-data-table ads-activity-table">
-                      <div class="detail-table-header">广告活动明细</div>
+                      <div class="detail-table-header">SBV广告活动明细</div>
                       <div class="detail-table-row header-row ads-activity-row ads-activity-header-row">
-                        <div>广告活动名称</div>
-                        <div>曝光量</div>
-                        <div>点击量</div>
-                        <div>点击率 (CTR)</div>
-                        <div>单次点击成本 (CPC)</div>
-                        <div>花费</div>
-                        <div>总销售额</div>
-                        <div>广告投入产出比</div>
-                        <div>总订单数</div>
-                        <div>转化率 (CVR)</div>
+                        <div>广告活动名称</div><div>曝光量</div><div>点击量</div><div>点击率 (CTR)</div><div>单次点击成本 (CPC)</div><div>花费</div><div>总销售额</div><div>广告投入产出比</div><div>总订单数</div><div>转化率 (CVR)</div>
                       </div>
-                      <div
-                        v-for="activity in item.ads.activityList"
-                        :key="`${activity.source}-${activity.campaignName}`"
-                        class="detail-table-row ads-activity-row"
-                        :class="`row-source-${activity.source.toLowerCase()}`"
-                      >
-                        <div>{{ activity.campaignName }}</div>
-                        <div>{{ activity.impressions }}</div>
-                        <div>{{ activity.clicks }}</div>
-                        <div>{{ activity.ctr }}</div>
-                        <div>{{ activity.cpc }}</div>
-                        <div>{{ activity.cost }}</div>
-                        <div>{{ activity.sales }}</div>
-                        <div>{{ activity.acos }}</div>
-                        <div>{{ activity.orders }}</div>
-                        <div>{{ activity.cvr }}</div>
+                      <div v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`" class="detail-table-row ads-activity-row">
+                        <div>{{ activity.campaignName }}</div><div>{{ activity.impressions }}</div><div>{{ activity.clicks }}</div><div>{{ activity.ctr }}</div><div>{{ activity.cpc }}</div><div>{{ activity.cost }}</div><div>{{ activity.sales }}</div><div>{{ activity.acos }}</div><div>{{ activity.orders }}</div><div>{{ activity.cvr }}</div>
                       </div>
                     </div>
                   </div>
