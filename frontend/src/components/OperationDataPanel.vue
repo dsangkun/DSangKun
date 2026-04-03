@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive } from 'vue'
 import type { ProductMetricBlock, ProductOperationItem } from '../types/workbench'
 
 type HealthLevel = 'good' | 'medium' | 'risk'
+type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'ads'
 
 const props = defineProps<{
   items: ProductOperationItem[]
 }>()
 
-const activeReviewItem = ref<ProductOperationItem | null>(null)
-const activeMetricDetail = ref<{
-  productName: string
-  section: ProductMetricBlock
-} | null>(null)
+const expandedSections = reactive<Record<string, Partial<Record<ExpandSectionKey, boolean>>>>({})
 
 const hasItems = computed(() => props.items.length > 0)
 
@@ -47,23 +44,37 @@ const sortedItems = computed(() => {
     .sort((a, b) => getLevelWeight(b.healthLevel) - getLevelWeight(a.healthLevel))
 })
 
-const openReviewDetail = (item: ProductOperationItem) => {
-  activeReviewItem.value = item
+const isExpanded = (itemId: string, section: ExpandSectionKey) => {
+  return Boolean(expandedSections[itemId]?.[section])
 }
 
-const closeReviewDetail = () => {
-  activeReviewItem.value = null
-}
-
-const openMetricDetail = (item: ProductOperationItem, section: ProductMetricBlock) => {
-  activeMetricDetail.value = {
-    productName: item.productName,
-    section
+const toggleSection = (itemId: string, section: ExpandSectionKey) => {
+  if (!expandedSections[itemId]) {
+    expandedSections[itemId] = {}
   }
+
+  expandedSections[itemId][section] = !expandedSections[itemId][section]
 }
 
-const closeMetricDetail = () => {
-  activeMetricDetail.value = null
+const getSectionCount = (itemId: string) => {
+  const state = expandedSections[itemId]
+  if (!state) return 0
+  return Object.values(state).filter(Boolean).length
+}
+
+const getSectionTitle = (section: ExpandSectionKey) => {
+  const titleMap: Record<ExpandSectionKey, string> = {
+    review: '评价信息',
+    sales: '销售数据',
+    traffic: '流量数据',
+    ads: '广告数据'
+  }
+
+  return titleMap[section]
+}
+
+const getMetricPreview = (section: ProductMetricBlock) => {
+  return section.compareList.map((item) => `${item.label}${item.value}`).join(' / ')
 }
 </script>
 
@@ -75,197 +86,237 @@ const closeMetricDetail = () => {
       <span class="status-guide-item risk"><i></i> 风险：存在明显异常，建议优先处理</span>
     </div>
 
-    <div class="product-showcase-grid ultra-compact-grid">
+    <div class="product-showcase-grid single-column-grid">
       <article
         v-for="item in sortedItems"
         :key="item.id"
-        class="operation-card ultra-compact-card"
+        class="operation-card expanded-operation-card vertical-flow-card"
         :class="`card-level-${item.healthLevel}`"
       >
         <div class="card-level-strip" :class="`strip-${item.healthLevel}`"></div>
 
-        <section class="operation-card-basic image-first-card">
-          <div class="product-top-tags top-tags-floating">
+        <section class="operation-card-basic top-down-basic-layout">
+          <div class="product-top-tags top-tags-left wrapped-tags">
             <div class="health-badge" :class="`health-badge-${item.healthLevel}`">
               {{ item.healthLevel === 'risk' ? '风险' : item.healthLevel === 'medium' ? '中' : '好' }}
             </div>
-            <div class="product-tag tiny-tag">{{ item.productTag }}</div>
+            <div class="product-tag">{{ item.productTag }}</div>
+            <div class="info-chip">子ASIN {{ item.childAsin }}</div>
           </div>
 
-          <div class="product-image-frame">
+          <div class="product-image-frame stacked-image-frame">
             <div class="product-cover product-cover-large" :class="`product-cover-${item.coverTone}`">
               <span>{{ item.coverText }}</span>
             </div>
           </div>
 
-          <div class="product-basic-content product-basic-centered">
-            <div class="product-card-title tiny-title centered-title">{{ item.productName }}</div>
-            <div class="product-card-subtitle tiny-subtitle centered-subtitle">{{ item.shopName }} · {{ item.siteName }}</div>
-            <div class="product-basic-meta tiny-meta centered-meta">
-              <span class="info-chip tiny-chip">子ASIN {{ item.childAsin }}</span>
+          <div class="product-basic-content stacked-main-content">
+            <div class="stacked-title-block">
+              <div class="product-card-title stacked-name">{{ item.productName }}</div>
+              <div class="product-card-subtitle stacked-subtitle">{{ item.shopName }} · {{ item.siteName }}</div>
+              <div class="product-card-subtitle stacked-subtitle">SKU {{ item.childSku }}</div>
             </div>
-          </div>
-        </section>
 
-        <section class="info-card compact-section tiny-section">
-          <div class="info-card-header compact-header tiny-header">
-            <div>
-              <div class="info-card-title tiny-section-title">评价信息</div>
-              <div class="info-card-desc tiny-desc">卡片仅保留摘要，详细数据进入详情</div>
-            </div>
-            <button class="link-btn tiny-link" @click="openReviewDetail(item)">详情</button>
-          </div>
-          <div class="review-inline">
-            <span class="review-pill">评分 {{ item.review.score }}</span>
-            <span class="review-pill">评论 {{ item.review.reviewCount }}</span>
-            <span class="review-pill risk">差评 {{ item.review.badReviewCount }}</span>
-          </div>
-          <div class="review-one-line">{{ item.review.latestTitle }}</div>
-        </section>
+            <div class="expand-summary-chip">已展开 {{ getSectionCount(item.id) }} 项</div>
 
-        <section class="info-card compact-section tiny-section">
-          <div class="info-card-header compact-header tiny-header">
-            <div>
-              <div class="info-card-title tiny-section-title">{{ item.sales.title }}</div>
-              <div class="info-card-desc tiny-desc">卡片只保留对比柱图，详细字段点开查看</div>
-            </div>
-            <button class="link-btn tiny-link" @click="openMetricDetail(item, item.sales)">详情</button>
-          </div>
-          <div class="micro-legend">
-            <span><i class="legend-dot today"></i>今</span>
-            <span><i class="legend-dot avg"></i>均</span>
-            <span><i class="legend-dot lastweek"></i>周</span>
-            <span><i class="legend-dot target"></i>目</span>
-          </div>
-          <div class="micro-chart-wrap">
-            <div class="micro-guide-line"></div>
-            <div class="mini-bars micro-bars">
-              <div v-for="bar in item.sales.compareList" :key="bar.label" class="mini-bar-group micro-bar-group">
-                <div class="mini-bar micro-bar" :class="`bar-${bar.type}`" :style="{ height: `${bar.height}px` }"></div>
-                <div class="mini-bar-label micro-bar-label">{{ bar.label }}</div>
-              </div>
-            </div>
-          </div>
-        </section>
+            <div class="section-toggle-list compact-section-list">
+              <section class="inline-section-card">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'review')">
+                  <div class="section-toggle-main">
+                    <div class="section-toggle-title">{{ getSectionTitle('review') }}</div>
+                    <div class="section-toggle-desc horizontal-desc">
+                      评分 {{ item.review.score }} / 评论 {{ item.review.reviewCount }} / 差评 {{ item.review.badReviewCount }}
+                    </div>
+                  </div>
+                  <div class="section-toggle-right compact-toggle-right">
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'review') }">⌄</span>
+                  </div>
+                </button>
 
-        <section class="info-card compact-section tiny-section">
-          <div class="info-card-header compact-header tiny-header">
-            <div>
-              <div class="info-card-title tiny-section-title">{{ item.traffic.title }}</div>
-              <div class="info-card-desc tiny-desc">卡片只保留对比柱图，详细字段点开查看</div>
-            </div>
-            <button class="link-btn tiny-link" @click="openMetricDetail(item, item.traffic)">详情</button>
-          </div>
-          <div class="micro-legend">
-            <span><i class="legend-dot today"></i>今</span>
-            <span><i class="legend-dot avg"></i>均</span>
-            <span><i class="legend-dot lastweek"></i>周</span>
-            <span><i class="legend-dot target"></i>目</span>
-          </div>
-          <div class="micro-chart-wrap">
-            <div class="micro-guide-line"></div>
-            <div class="mini-bars micro-bars">
-              <div v-for="bar in item.traffic.compareList" :key="bar.label" class="mini-bar-group micro-bar-group">
-                <div class="mini-bar micro-bar" :class="`bar-${bar.type}`" :style="{ height: `${bar.height}px` }"></div>
-                <div class="mini-bar-label micro-bar-label">{{ bar.label }}</div>
-              </div>
-            </div>
-          </div>
-        </section>
+                <div v-if="isExpanded(item.id, 'review')" class="section-expand-panel">
+                  <div class="detail-data-table review-data-table">
+                    <div class="detail-table-header">评价明细</div>
+                    <div class="detail-table-row header-row">
+                      <div>字段</div>
+                      <div>数值</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>评分</div>
+                      <div>{{ item.review.score }}</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>评论总数</div>
+                      <div>{{ item.review.reviewCount }}</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>新增评论</div>
+                      <div>{{ item.review.newReviewCount }}</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>新增差评</div>
+                      <div>{{ item.review.badReviewCount }}</div>
+                    </div>
+                    <div class="detail-table-row multi-line-row">
+                      <div>最新评论标题</div>
+                      <div>{{ item.review.latestTitle }}</div>
+                    </div>
+                    <div class="detail-table-row multi-line-row">
+                      <div>最新评论内容</div>
+                      <div>{{ item.review.latestContent }}</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>评论时间</div>
+                      <div>{{ item.review.latestDate }}</div>
+                    </div>
+                    <div class="detail-table-row">
+                      <div>评论作者</div>
+                      <div>{{ item.review.latestAuthor }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-        <section class="info-card compact-section tiny-section">
-          <div class="info-card-header compact-header tiny-header">
-            <div>
-              <div class="info-card-title tiny-section-title">{{ item.ads.title }}</div>
-              <div class="info-card-desc tiny-desc">卡片只保留对比柱图，详细字段点开查看</div>
-            </div>
-            <button class="link-btn tiny-link" @click="openMetricDetail(item, item.ads)">详情</button>
-          </div>
-          <div class="micro-legend">
-            <span><i class="legend-dot today"></i>今</span>
-            <span><i class="legend-dot avg"></i>均</span>
-            <span><i class="legend-dot lastweek"></i>周</span>
-            <span><i class="legend-dot target"></i>目</span>
-          </div>
-          <div class="micro-chart-wrap">
-            <div class="micro-guide-line"></div>
-            <div class="mini-bars micro-bars">
-              <div v-for="bar in item.ads.compareList" :key="bar.label" class="mini-bar-group micro-bar-group">
-                <div class="mini-bar micro-bar" :class="`bar-${bar.type}`" :style="{ height: `${bar.height}px` }"></div>
-                <div class="mini-bar-label micro-bar-label">{{ bar.label }}</div>
-              </div>
+              <section class="inline-section-card metric-section-card">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'sales')">
+                  <div class="section-toggle-main">
+                    <div class="section-toggle-title">{{ item.sales.title }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ getMetricPreview(item.sales) }}</div>
+                  </div>
+                  <div class="section-toggle-right compact-toggle-right">
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sales') }">⌄</span>
+                  </div>
+                </button>
+
+                <div class="outer-chart-panel">
+                  <div class="outer-chart-title">柱状图展示</div>
+                  <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
+                  <div class="mini-bars dense-bars outer-dense-bars">
+                    <div v-for="bar in item.sales.compareList" :key="bar.label" class="mini-bar-group dense-bar-group">
+                      <div class="mini-bar dense-bar" :class="`bar-${bar.type}`" :style="{ height: `${Math.max(bar.height + 34, 92)}px` }">
+                        <span class="dense-bar-value">{{ bar.value }}</span>
+                      </div>
+                      <div class="mini-bar-label dense-bar-label">{{ bar.label }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="isExpanded(item.id, 'sales')" class="section-expand-panel">
+                  <div class="detail-data-table metric-data-table">
+                    <div class="detail-table-header">销售数据明细</div>
+                    <div class="detail-table-row header-row metric-header-row">
+                      <div>指标</div>
+                      <div>数值</div>
+                      <div>说明</div>
+                    </div>
+                    <div v-for="highlight in item.sales.highlights" :key="highlight.label" class="detail-table-row metric-row">
+                      <div>{{ highlight.label }}</div>
+                      <div>{{ highlight.value }}</div>
+                      <div>{{ highlight.note || '-' }}</div>
+                    </div>
+                    <div class="detail-table-row metric-row target-row">
+                      <div>目标值</div>
+                      <div>{{ item.sales.targetValue }}</div>
+                      <div>{{ item.sales.targetNote }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="inline-section-card metric-section-card">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'traffic')">
+                  <div class="section-toggle-main">
+                    <div class="section-toggle-title">{{ item.traffic.title }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ getMetricPreview(item.traffic) }}</div>
+                  </div>
+                  <div class="section-toggle-right compact-toggle-right">
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'traffic') }">⌄</span>
+                  </div>
+                </button>
+
+                <div class="outer-chart-panel">
+                  <div class="outer-chart-title">柱状图展示</div>
+                  <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
+                  <div class="mini-bars dense-bars outer-dense-bars">
+                    <div v-for="bar in item.traffic.compareList" :key="bar.label" class="mini-bar-group dense-bar-group">
+                      <div class="mini-bar dense-bar" :class="`bar-${bar.type}`" :style="{ height: `${Math.max(bar.height + 34, 92)}px` }">
+                        <span class="dense-bar-value">{{ bar.value }}</span>
+                      </div>
+                      <div class="mini-bar-label dense-bar-label">{{ bar.label }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="isExpanded(item.id, 'traffic')" class="section-expand-panel">
+                  <div class="detail-data-table metric-data-table">
+                    <div class="detail-table-header">流量数据明细</div>
+                    <div class="detail-table-row header-row metric-header-row">
+                      <div>指标</div>
+                      <div>数值</div>
+                      <div>说明</div>
+                    </div>
+                    <div v-for="highlight in item.traffic.highlights" :key="highlight.label" class="detail-table-row metric-row">
+                      <div>{{ highlight.label }}</div>
+                      <div>{{ highlight.value }}</div>
+                      <div>{{ highlight.note || '-' }}</div>
+                    </div>
+                    <div class="detail-table-row metric-row target-row">
+                      <div>目标值</div>
+                      <div>{{ item.traffic.targetValue }}</div>
+                      <div>{{ item.traffic.targetNote }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="inline-section-card metric-section-card">
+                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'ads')">
+                  <div class="section-toggle-main">
+                    <div class="section-toggle-title">{{ item.ads.title }}</div>
+                    <div class="section-toggle-desc horizontal-desc">{{ getMetricPreview(item.ads) }}</div>
+                  </div>
+                  <div class="section-toggle-right compact-toggle-right">
+                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'ads') }">⌄</span>
+                  </div>
+                </button>
+
+                <div class="outer-chart-panel">
+                  <div class="outer-chart-title">柱状图展示</div>
+                  <div class="outer-chart-subtitle">当日 / 7日均值 / 上周同日 / 目标值</div>
+                  <div class="mini-bars dense-bars outer-dense-bars">
+                    <div v-for="bar in item.ads.compareList" :key="bar.label" class="mini-bar-group dense-bar-group">
+                      <div class="mini-bar dense-bar" :class="`bar-${bar.type}`" :style="{ height: `${Math.max(bar.height + 34, 92)}px` }">
+                        <span class="dense-bar-value">{{ bar.value }}</span>
+                      </div>
+                      <div class="mini-bar-label dense-bar-label">{{ bar.label }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="isExpanded(item.id, 'ads')" class="section-expand-panel">
+                  <div class="detail-data-table metric-data-table">
+                    <div class="detail-table-header">广告数据明细</div>
+                    <div class="detail-table-row header-row metric-header-row">
+                      <div>指标</div>
+                      <div>数值</div>
+                      <div>说明</div>
+                    </div>
+                    <div v-for="highlight in item.ads.highlights" :key="highlight.label" class="detail-table-row metric-row">
+                      <div>{{ highlight.label }}</div>
+                      <div>{{ highlight.value }}</div>
+                      <div>{{ highlight.note || '-' }}</div>
+                    </div>
+                    <div class="detail-table-row metric-row target-row">
+                      <div>目标值</div>
+                      <div>{{ item.ads.targetValue }}</div>
+                      <div>{{ item.ads.targetNote }}</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </section>
       </article>
-    </div>
-
-    <div v-if="activeReviewItem" class="overlay modal-overlay" @click.self="closeReviewDetail">
-      <section class="metric-modal review-modal">
-        <div class="drawer-header">
-          <div>
-            <div class="drawer-title">{{ activeReviewItem.productName }} · 评价详情</div>
-            <div class="drawer-desc">卡片页只保留轻摘要，所有评价字段集中在详情弹窗查看。</div>
-          </div>
-          <button class="icon-btn" @click="closeReviewDetail">×</button>
-        </div>
-        <div class="metric-modal-content">
-          <div class="detail-metrics-row review-detail-grid">
-            <div class="summary-stat compact-stat">
-              <div class="summary-label">评分</div>
-              <div class="summary-value compact-value">{{ activeReviewItem.review.score }}</div>
-            </div>
-            <div class="summary-stat compact-stat">
-              <div class="summary-label">评论总数</div>
-              <div class="summary-value compact-value">{{ activeReviewItem.review.reviewCount }}</div>
-            </div>
-            <div class="summary-stat compact-stat">
-              <div class="summary-label">新增评论</div>
-              <div class="summary-value compact-value">{{ activeReviewItem.review.newReviewCount }}</div>
-            </div>
-            <div class="summary-stat compact-stat risk">
-              <div class="summary-label">新增差评</div>
-              <div class="summary-value compact-value">{{ activeReviewItem.review.badReviewCount }}</div>
-            </div>
-          </div>
-          <div class="review-detail-card">
-            <div class="review-preview-title">{{ activeReviewItem.review.latestTitle }}</div>
-            <div class="review-preview-content">{{ activeReviewItem.review.latestContent }}</div>
-            <div class="review-preview-meta">{{ activeReviewItem.review.latestAuthor }} · {{ activeReviewItem.review.latestDate }}</div>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div v-if="activeMetricDetail" class="overlay modal-overlay" @click.self="closeMetricDetail">
-      <section class="metric-modal">
-        <div class="drawer-header">
-          <div>
-            <div class="drawer-title">{{ activeMetricDetail.productName }} · {{ activeMetricDetail.section.title }}</div>
-            <div class="drawer-desc">卡片页只保留图形，详细字段、目标值和备注都放在这里。</div>
-          </div>
-          <button class="icon-btn" @click="closeMetricDetail">×</button>
-        </div>
-        <div class="metric-modal-content">
-          <div class="target-strip target-strip-large">目标：{{ activeMetricDetail.section.targetValue }} · {{ activeMetricDetail.section.targetNote }}</div>
-          <div class="metric-summary-grid metric-summary-grid-modal">
-            <div v-for="highlight in activeMetricDetail.section.highlights" :key="highlight.label" class="metric-summary-card" :class="highlight.status">
-              <div class="summary-label">{{ highlight.label }}</div>
-              <div class="summary-value">{{ highlight.value }}</div>
-              <div class="summary-note">{{ highlight.note }}</div>
-            </div>
-          </div>
-          <div class="detail-chart-card">
-            <div class="detail-chart-title">当日 / 7日均值 / 上周同日 / 目标值</div>
-            <div class="mini-bars large-bars">
-              <div v-for="bar in activeMetricDetail.section.compareList" :key="bar.label" class="mini-bar-group">
-                <div class="mini-bar" :class="`bar-${bar.type}`" :style="{ height: `${Math.max(bar.height + 18, 70)}px` }">{{ bar.value }}</div>
-                <div class="mini-bar-label">{{ bar.label }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   </div>
 
