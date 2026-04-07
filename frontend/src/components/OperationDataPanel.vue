@@ -244,15 +244,39 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                 </div>
                 <div v-if="isExpanded(item.id, 'spAds')" class="section-expand-panel">
                   <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
-                  <div class="detail-table-scroll">
-                    <div class="detail-data-table ads-activity-table">
+                  <div class="detail-table-scroll ads-table-scroll">
+                    <div class="detail-data-table ads-activity-table-wrap">
                       <div class="detail-table-header">SP广告活动明细</div>
-                      <div class="detail-table-row header-row ads-activity-row ads-activity-header-row">
-                        <div>广告活动名称</div><div>曝光量</div><div>点击量</div><div>点击率 (CTR)</div><div>单次点击成本 (CPC)</div><div>花费</div><div>总销售额</div><div>广告投入产出比</div><div>总订单数</div><div>转化率 (CVR)</div>
-                      </div>
-                      <div v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`" class="detail-table-row ads-activity-row">
-                        <div>{{ activity.campaignName }}</div><div>{{ activity.impressions }}</div><div>{{ activity.clicks }}</div><div>{{ activity.ctr }}</div><div>{{ activity.cpc }}</div><div>{{ activity.cost }}</div><div>{{ activity.sales }}</div><div>{{ activity.acos }}</div><div>{{ activity.orders }}</div><div>{{ activity.cvr }}</div>
-                      </div>
+                      <table class="ads-activity-table sticky-ads-table">
+                        <thead>
+                          <tr>
+                            <th>广告活动名称</th>
+                            <th>曝光量</th>
+                            <th>点击量</th>
+                            <th>点击率 (CTR)</th>
+                            <th>单次点击成本 (CPC)</th>
+                            <th>花费</th>
+                            <th>总销售额</th>
+                            <th>广告投入产出比</th>
+                            <th>总订单数</th>
+                            <th>转化率 (CVR)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`">
+                            <td>{{ activity.campaignName }}</td>
+                            <td>{{ activity.impressions }}</td>
+                            <td>{{ activity.clicks }}</td>
+                            <td>{{ activity.ctr }}</td>
+                            <td>{{ activity.cpc }}</td>
+                            <td>{{ activity.cost }}</td>
+                            <td>{{ activity.sales }}</td>
+                            <td>{{ activity.acos }}</td>
+                            <td>{{ activity.orders }}</td>
+                            <td>{{ activity.cvr }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -278,15 +302,39 @@ const getMetricPreview = (section: ProductMetricBlock) => {
                 </div>
                 <div v-if="isExpanded(item.id, 'sbvAds')" class="section-expand-panel">
                   <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
-                  <div class="detail-table-scroll">
-                    <div class="detail-data-table ads-activity-table">
+                  <div class="detail-table-scroll ads-table-scroll">
+                    <div class="detail-data-table ads-activity-table-wrap">
                       <div class="detail-table-header">SBV广告活动明细</div>
-                      <div class="detail-table-row header-row ads-activity-row ads-activity-header-row">
-                        <div>广告活动名称</div><div>曝光量</div><div>点击量</div><div>点击率 (CTR)</div><div>单次点击成本 (CPC)</div><div>花费</div><div>总销售额</div><div>广告投入产出比</div><div>总订单数</div><div>转化率 (CVR)</div>
-                      </div>
-                      <div v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`" class="detail-table-row ads-activity-row">
-                        <div>{{ activity.campaignName }}</div><div>{{ activity.impressions }}</div><div>{{ activity.clicks }}</div><div>{{ activity.ctr }}</div><div>{{ activity.cpc }}</div><div>{{ activity.cost }}</div><div>{{ activity.sales }}</div><div>{{ activity.acos }}</div><div>{{ activity.orders }}</div><div>{{ activity.cvr }}</div>
-                      </div>
+                      <table class="ads-activity-table sticky-ads-table">
+                        <thead>
+                          <tr>
+                            <th>广告活动名称</th>
+                            <th>曝光量</th>
+                            <th>点击量</th>
+                            <th>点击率 (CTR)</th>
+                            <th>单次点击成本 (CPC)</th>
+                            <th>花费</th>
+                            <th>总销售额</th>
+                            <th>广告投入产出比</th>
+                            <th>总订单数</th>
+                            <th>转化率 (CVR)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`">
+                            <td>{{ activity.campaignName }}</td>
+                            <td>{{ activity.impressions }}</td>
+                            <td>{{ activity.clicks }}</td>
+                            <td>{{ activity.ctr }}</td>
+                            <td>{{ activity.cpc }}</td>
+                            <td>{{ activity.cost }}</td>
+                            <td>{{ activity.sales }}</td>
+                            <td>{{ activity.acos }}</td>
+                            <td>{{ activity.orders }}</td>
+                            <td>{{ activity.cvr }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
