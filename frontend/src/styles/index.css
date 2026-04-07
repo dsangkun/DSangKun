@@ -425,6 +425,12 @@ button { border: none; outline: none; font-family: inherit; }
 .ads-section-card { overflow: hidden; }
 .section-toggle-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); cursor: pointer; min-width: 0; }
 .section-toggle-btn:hover { background: linear-gradient(180deg, #fdfefe 0%, #f1f6ff 100%); }
+.section-toggle-btn-unread {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+}
+.section-toggle-btn-unread:hover {
+  background: linear-gradient(180deg, #e0f2fe 0%, #cfe8ff 100%);
+}
 .section-toggle-main { flex: 1; min-width: 0; }
 .section-toggle-title { font-size: 22px; font-weight: 800; color: #111827; line-height: 1.3; }
 .section-toggle-desc { margin-top: 6px; font-size: 16px; color: #6b7280; line-height: 1.7; word-break: break-word; }
@@ -500,6 +506,12 @@ button { border: none; outline: none; font-family: inherit; }
 .expanded-metric-summary-panel {
   border-top: none;
   padding: 0 0 8px;
+  background: transparent;
+}
+
+.expanded-ads-summary-panel {
+  border-top: none;
+  padding: 0 0 10px;
   background: transparent;
 }
 
@@ -1004,11 +1016,37 @@ button { border: none; outline: none; font-family: inherit; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1280px) {
+  .sales-summary-grid,
+  .vertical-sales-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ads-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ads-summary-item,
+  .ads-visual-summary-item,
+  .sales-visual-summary-item {
+    min-height: 136px;
+  }
+}
+
 @media (max-width: 1100px) {
   .uniform-card-grid,
   .slim-uniform-grid,
   .single-column-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .product-head-card {
+    padding: 14px;
+  }
+
+  .amazon-image-real-wrap,
+  .amazon-listing-style-cover {
+    max-width: 280px;
   }
 }
 
@@ -1017,6 +1055,7 @@ button { border: none; outline: none; font-family: inherit; }
   .content-area, .wide-content-area { padding: 16px; }
   .section-header, .todo-top { flex-direction: column; align-items: flex-start; }
   .ads-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sales-summary-grid,
   .vertical-sales-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ads-summary-item { min-height: 82px; }
   .ads-summary-value { font-size: clamp(22px, 4vw, 30px); }

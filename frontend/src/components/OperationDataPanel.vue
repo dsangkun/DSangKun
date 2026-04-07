@@ -170,26 +170,6 @@ const getSalesModules = (item: ProductOperationItem) => {
   ]
 }
 
-const getTrafficModules = (item: ProductOperationItem) => {
-  const totalHighlights = item.traffic.highlights
-  const factorMap: Record<string, number> = {
-    总流量: 0.74,
-    自然流量: 0.78,
-    广告流量: 0.69,
-    Listing转化: 0.9
-  }
-
-  const naturalHighlights = item.traffic.highlights.map((highlight) => ({
-    ...highlight,
-    value: scaleMetricValue(highlight.value, factorMap[highlight.label] ?? 0.76),
-    note: highlight.label === '广告流量' ? '以自然承接为主' : highlight.note
-  }))
-
-  return [
-    { key: 'total', title: '总数据', highlights: totalHighlights },
-    { key: 'natural', title: '自然数据', highlights: naturalHighlights }
-  ]
-}
 </script>
 
 <template>
@@ -242,7 +222,7 @@ const getTrafficModules = (item: ProductOperationItem) => {
 
           <div class="section-toggle-list compact-section-list">
               <section class="inline-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'review')">
+                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'review') }" @click="toggleSection(item.id, 'review')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ getSectionTitle('review') }}</div>
                   </div>
@@ -276,7 +256,7 @@ const getTrafficModules = (item: ProductOperationItem) => {
               </section>
 
               <section class="inline-section-card metric-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'sales')">
+                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'sales') }" @click="toggleSection(item.id, 'sales')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ item.sales.title }}</div>
                   </div>
@@ -317,7 +297,7 @@ const getTrafficModules = (item: ProductOperationItem) => {
               </section>
 
               <section class="inline-section-card metric-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'traffic')">
+                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'traffic') }" @click="toggleSection(item.id, 'traffic')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ item.traffic.title }}</div>
                   </div>
@@ -327,24 +307,21 @@ const getTrafficModules = (item: ProductOperationItem) => {
                   </div>
                 </button>
                 <div v-if="isExpanded(item.id, 'traffic')" class="section-expand-panel">
-                  <div class="sales-summary-panel expanded-metric-summary-panel vertical-sales-summary-panel">
-                    <div v-for="module in getTrafficModules(item)" :key="`${item.id}-${module.key}`" class="sales-module-block">
-                      <div class="sales-module-title">{{ module.title }}</div>
-                      <div class="ads-summary-grid sales-summary-grid vertical-sales-summary-grid">
-                        <div v-for="highlight in module.highlights" :key="`${module.key}-${highlight.label}`" class="ads-summary-item ads-visual-summary-item sales-visual-summary-item" :class="highlight.status">
-                          <div class="ads-summary-head">
-                            <div class="ads-summary-label">{{ highlight.label }}</div>
-                            <div class="ads-summary-value">{{ highlight.value }}</div>
-                          </div>
-                          <div class="ads-mini-chart refined-ads-mini-chart">
-                            <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                              <div v-for="row in getAdsSummaryRows(highlight)" :key="`${module.key}-${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                                <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                                <div class="ads-mini-chart-track">
-                                  <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
-                                </div>
-                                <div class="ads-mini-chart-row-value">{{ row.value }}</div>
+                  <div class="sales-summary-panel expanded-metric-summary-panel">
+                    <div class="ads-summary-grid sales-summary-grid">
+                      <div v-for="highlight in item.traffic.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item sales-visual-summary-item" :class="highlight.status">
+                        <div class="ads-summary-head">
+                          <div class="ads-summary-label">{{ highlight.label }}</div>
+                          <div class="ads-summary-value">{{ highlight.value }}</div>
+                        </div>
+                        <div class="ads-mini-chart refined-ads-mini-chart">
+                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
+                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
+                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
+                              <div class="ads-mini-chart-track">
+                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
                               </div>
+                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
                             </div>
                           </div>
                         </div>
@@ -358,38 +335,37 @@ const getTrafficModules = (item: ProductOperationItem) => {
               </section>
 
               <section class="inline-section-card ads-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'spAds')">
+                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'spAds') }" @click="toggleSection(item.id, 'spAds')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ getSectionTitle('spAds') }}</div>
-                    <div class="section-toggle-desc horizontal-desc">{{ item.spAds.sourceNote }}</div>
                   </div>
                   <div class="section-toggle-right compact-toggle-right">
                     <span class="section-read-badge" :class="isRead(item.id, 'spAds') ? 'read' : 'unread'">{{ isRead(item.id, 'spAds') ? '已读' : '未读' }}</span>
                     <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'spAds') }">⌄</span>
                   </div>
                 </button>
-                <div class="ads-summary-panel">
-                  <div class="ads-summary-grid">
-                    <div v-for="highlight in item.spAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
-                      <div class="ads-summary-head">
-                        <div class="ads-summary-label">{{ highlight.label }}</div>
-                        <div class="ads-summary-value">{{ highlight.value }}</div>
-                      </div>
-                      <div class="ads-mini-chart refined-ads-mini-chart">
-                        <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                          <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                            <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                            <div class="ads-mini-chart-track">
-                              <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
+                <div v-if="isExpanded(item.id, 'spAds')" class="section-expand-panel">
+                  <div class="ads-summary-panel expanded-ads-summary-panel">
+                    <div class="ads-summary-grid">
+                      <div v-for="highlight in item.spAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
+                        <div class="ads-summary-head">
+                          <div class="ads-summary-label">{{ highlight.label }}</div>
+                          <div class="ads-summary-value">{{ highlight.value }}</div>
+                        </div>
+                        <div class="ads-mini-chart refined-ads-mini-chart">
+                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
+                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
+                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
+                              <div class="ads-mini-chart-track">
+                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
+                              </div>
+                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
                             </div>
-                            <div class="ads-mini-chart-row-value">{{ row.value }}</div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div v-if="isExpanded(item.id, 'spAds')" class="section-expand-panel">
                   <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
                   <div class="detail-table-scroll ads-table-scroll">
                     <div class="detail-data-table ads-activity-table-wrap">
@@ -436,38 +412,37 @@ const getTrafficModules = (item: ProductOperationItem) => {
               </section>
 
               <section class="inline-section-card ads-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" @click="toggleSection(item.id, 'sbvAds')">
+                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'sbvAds') }" @click="toggleSection(item.id, 'sbvAds')">
                   <div class="section-toggle-main">
                     <div class="section-toggle-title">{{ getSectionTitle('sbvAds') }}</div>
-                    <div class="section-toggle-desc horizontal-desc">{{ item.sbvAds.sourceNote }}</div>
                   </div>
                   <div class="section-toggle-right compact-toggle-right">
                     <span class="section-read-badge" :class="isRead(item.id, 'sbvAds') ? 'read' : 'unread'">{{ isRead(item.id, 'sbvAds') ? '已读' : '未读' }}</span>
                     <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sbvAds') }">⌄</span>
                   </div>
                 </button>
-                <div class="ads-summary-panel">
-                  <div class="ads-summary-grid">
-                    <div v-for="highlight in item.sbvAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
-                      <div class="ads-summary-head">
-                        <div class="ads-summary-label">{{ highlight.label }}</div>
-                        <div class="ads-summary-value">{{ highlight.value }}</div>
-                      </div>
-                      <div class="ads-mini-chart refined-ads-mini-chart">
-                        <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                          <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                            <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                            <div class="ads-mini-chart-track">
-                              <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
+                <div v-if="isExpanded(item.id, 'sbvAds')" class="section-expand-panel">
+                  <div class="ads-summary-panel expanded-ads-summary-panel">
+                    <div class="ads-summary-grid">
+                      <div v-for="highlight in item.sbvAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
+                        <div class="ads-summary-head">
+                          <div class="ads-summary-label">{{ highlight.label }}</div>
+                          <div class="ads-summary-value">{{ highlight.value }}</div>
+                        </div>
+                        <div class="ads-mini-chart refined-ads-mini-chart">
+                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
+                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
+                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
+                              <div class="ads-mini-chart-track">
+                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
+                              </div>
+                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
                             </div>
-                            <div class="ads-mini-chart-row-value">{{ row.value }}</div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div v-if="isExpanded(item.id, 'sbvAds')" class="section-expand-panel">
                   <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
                   <div class="detail-table-scroll ads-table-scroll">
                     <div class="detail-data-table ads-activity-table-wrap">
