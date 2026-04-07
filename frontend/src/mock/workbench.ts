@@ -34,6 +34,27 @@ const buildAdsBlock = (
   sourceNote
 })
 
+const adCampaignUrlMap: Record<string, string> = {
+  '广toy storage organizer拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=355065656984171',
+  'ASIN广告拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=391126767936174',
+  '广kids toy storage organizer拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=303624013836719',
+  '广toy storage拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=302756906975129',
+  '自动广告拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=366241620183803',
+  '广 toy organizers and storage 拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=300983666309309',
+  '广toy organizer拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=404238045694805',
+  '精kids toy storage organizer拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=512985104136298',
+  '精kids toy organizer拾贰': 'https://ads.lingxing.com/ad_report/ad_group/index/index?profile_id=3558032451662781&id=61666176824114',
+  'SBV-toy storage organizer-新款': 'https://ads.lingxing.com/ad_report/headline/ad_group/list?profile_id=3558032451662781&id=265437749068919',
+  'SBV-toy organizer-新款': 'https://ads.lingxing.com/ad_report/headline/ad_group/list?profile_id=3558032451662781&id=543596755580481',
+  'SBV-toy storage-新款': 'https://ads.lingxing.com/ad_report/headline/ad_group/list?profile_id=3558032451662781&id=467648413174982'
+}
+
+const withCampaignUrl = (activities: ProductAdActivityItem[]): ProductAdActivityItem[] =>
+  activities.map((activity) => ({
+    ...activity,
+    campaignUrl: adCampaignUrlMap[activity.campaignName] ?? activity.campaignUrl
+  }))
+
 export const newArrivalMock: NewArrivalItem[] = [
   { id: 'A001', title: '竞品 A 新上架：便携咖啡机 Pro', time: '09:12', category: '厨房小家电', shop: '竞品旗舰店A', snapshotUrl: 'https://snapshot.example.com/product/A001' },
   { id: 'B014', title: '竞品 B 新上架：无叶挂脖风扇 Lite', time: '10:03', category: '季节电器', shop: '竞品旗舰店B', snapshotUrl: 'https://snapshot.example.com/product/B014' },
@@ -120,6 +141,8 @@ export const operationDataMock: ProductOperationItem[] = [
     productTag: '重点观察',
     coverText: '白盆',
     coverTone: 'blue',
+    listingTitle: 'EXPERLAM Kids Toy Storage Organizer with Removable Bins and Bookshelf, Wooden Montessori Cabinet for Playroom and Nursery',
+    listingPrice: '$36.99',
     childAsin: 'B0D45HSHDF',
     childSku: '230519W-SNSJ1-2_XM',
     review: {
@@ -130,7 +153,11 @@ export const operationDataMock: ProductOperationItem[] = [
       latestTitle: '安装比预期简单',
       latestContent: '整体质感不错，孩子收纳玩具很方便，但希望抽屉再顺滑一点。',
       latestDate: '今天 10:26',
-      latestAuthor: 'Amazon User'
+      latestAuthor: 'Amazon User',
+      recentComments: [
+        { author: '用户A', content: '1231321321', date: '今天 10:26' },
+        { author: '用户B', content: '22222', date: '今天 09:58' }
+      ]
     },
     sales: buildMetricBlock('销售数据', [
       { label: '今', value: '71', height: 54, type: 'today' },
@@ -164,7 +191,7 @@ export const operationDataMock: ProductOperationItem[] = [
       { label: 'ACOS', value: '15.06%', note: 'SP 整体 ACOS', status: 'good' },
       { label: '总订单数', value: '22', note: 'SP 总订单', status: 'neutral' },
       { label: 'CVR', value: '7.86%', note: 'SP 转化率', status: 'good' }
-    ], whiteBasinSpAds, 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
+    ], withCampaignUrl(whiteBasinSpAds), 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
     sbvAds: buildAdsBlock('SBV广告', [
       { label: '曝光量', value: '9,441', note: 'SBV 汇总曝光', status: 'neutral' },
       { label: '点击量', value: '126', note: 'SBV 汇总点击', status: 'neutral' },
@@ -175,7 +202,7 @@ export const operationDataMock: ProductOperationItem[] = [
       { label: 'ACOS', value: '17.71%', note: 'SBV 整体 ACOS', status: 'warn' },
       { label: '总订单数', value: '7', note: 'SBV 总订单', status: 'neutral' },
       { label: 'CVR', value: '5.56%', note: 'SBV 转化率', status: 'neutral' }
-    ], whiteBasinSbvAds, 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
+    ], withCampaignUrl(whiteBasinSbvAds), 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
   },
   ...['P002', 'P003', 'P004', 'P005', 'P006', 'P007', 'P008'].map((id, index) => {
     const meta = [
@@ -197,6 +224,8 @@ export const operationDataMock: ProductOperationItem[] = [
       productTag: '广告观察',
       coverText: meta[3],
       coverTone: meta[2],
+      listingTitle: `${meta[0]} Toy Storage Organizer for Kids, Wooden Cabinet with Open Shelves and Removable Bins for Playroom`,
+      listingPrice: ['$39.99', '$49.99', '$37.99', '$38.99', '$42.99', '$45.99', '$47.99'][index],
       childAsin: meta[4],
       childSku: '230519W-SNSJ1-2_XM',
       review: {
@@ -207,7 +236,11 @@ export const operationDataMock: ProductOperationItem[] = [
         latestTitle: '评价摘要待接真实数据',
         latestContent: '当前为页面结构验证数据，后续由真实评论数据替换。',
         latestDate: '今天 11:00',
-        latestAuthor: 'Amazon User'
+        latestAuthor: 'Amazon User',
+        recentComments: [
+          { author: '用户A', content: '1231321321', date: '今天 11:00' },
+          { author: '用户B', content: '22222', date: '今天 10:42' }
+        ]
       },
       sales: buildMetricBlock('销售数据', [
         { label: '今', value: '32', height: 36, type: 'today' },
@@ -231,8 +264,8 @@ export const operationDataMock: ProductOperationItem[] = [
         { label: '广告流量', value: '340', note: '待接真实数据', status: 'neutral' },
         { label: 'Listing转化', value: '4.85%', note: '待接真实数据', status: 'warn' }
       ], '1,150', '流量目标：待接真实数据'),
-      spAds: buildAdsBlock('SP广告', defaultSpAdsHighlights, defaultSpAdsActivity(meta[4]), 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
-      sbvAds: buildAdsBlock('SBV广告', defaultSbvAdsHighlights, defaultSbvAdsActivity(meta[4]), 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
+      spAds: buildAdsBlock('SP广告', defaultSpAdsHighlights, withCampaignUrl(defaultSpAdsActivity(meta[4])), 'SP广告：从 SP 广告报告按广告ASIN筛选该产品数据'),
+      sbvAds: buildAdsBlock('SBV广告', defaultSbvAdsHighlights, withCampaignUrl(defaultSbvAdsActivity(meta[4])), 'SBV广告：读取该产品 SBV 单表，剔除首行汇总后展示活动数据')
     }
   })
 ]

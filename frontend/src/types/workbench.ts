@@ -55,6 +55,7 @@ export interface ProductMetricBlock {
 export interface ProductAdActivityItem {
   source: 'SBV' | 'SP'
   campaignName: string
+  campaignUrl?: string
   impressions: string
   clicks: string
   ctr: string
@@ -73,6 +74,12 @@ export interface ProductAdsBlock {
   sourceNote: string
 }
 
+export interface ProductReviewComment {
+  author: string
+  content: string
+  date?: string
+}
+
 export interface ProductReviewInfo {
   score: string
   reviewCount: string
@@ -82,6 +89,7 @@ export interface ProductReviewInfo {
   latestContent: string
   latestDate: string
   latestAuthor: string
+  recentComments?: ProductReviewComment[]
 }
 
 export interface ProductOperationItem {
@@ -93,6 +101,9 @@ export interface ProductOperationItem {
   productTag: string
   coverText: string
   coverTone: 'blue' | 'green' | 'orange' | 'purple'
+  listingTitle?: string
+  listingPrice?: string
+  productImageUrl?: string
   childAsin: string
   childSku: string
   review: ProductReviewInfo
