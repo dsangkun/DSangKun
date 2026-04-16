@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import ProjectProgressView from '../views/ProjectProgressView.vue'
+import RussiaWbView from '../views/RussiaWbView.vue'
 import WorkbenchView from '../views/WorkbenchView.vue'
 
 const router = createRouter({
@@ -6,8 +8,18 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'workbench',
+      name: 'amazon-workbench',
       component: WorkbenchView
+    },
+    {
+      path: '/wb',
+      name: 'russia-wb',
+      component: RussiaWbView
+    },
+    {
+      path: '/project-progress',
+      name: 'project-progress',
+      component: ProjectProgressView
     }
   ]
 })

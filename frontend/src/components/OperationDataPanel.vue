@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
-import type { MetricHighlightItem, ProductMetricBlock, ProductOperationItem } from '../types/workbench'
+import { computed, reactive, watch } from 'vue'
+import type { MetricHighlightItem, ProductAdsBlock, ProductMetricBlock, ProductOperationItem } from '../types/workbench'
 
 type HealthLevel = 'good' | 'medium' | 'risk'
 type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'spAds' | 'sbvAds'
@@ -8,6 +8,26 @@ type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'spAds' | 'sbvAds'
 const props = defineProps<{
   items: ProductOperationItem[]
 }>()
+
+const emit = defineEmits<{
+  progressChange: [payload: { total: number, read: number }]
+}>()
+
+type FocusMetricRow = {
+  key: 'today' | 'avg' | 'lastweek' | 'target'
+  label: string
+  value: string
+  barHeight: number
+  pointX: number
+  pointY: number
+}
+
+type FocusMetricCard = {
+  key: string
+  title: string
+  value: string
+  rows: FocusMetricRow[]
+}
 
 const expandedSections = reactive<Record<string, Partial<Record<ExpandSectionKey, boolean>>>>({})
 const readSections = reactive<Record<string, Partial<Record<ExpandSectionKey, boolean>>>>({})
@@ -48,6 +68,17 @@ const sortedItems = computed(() => {
     .sort((a, b) => getLevelWeight(b.healthLevel) - getLevelWeight(a.healthLevel))
 })
 
+const sectionProgressKeys: ExpandSectionKey[] = ['review', 'sales', 'traffic', 'spAds', 'sbvAds']
+
+const emitProgressChange = () => {
+  const total = props.items.length * sectionProgressKeys.length
+  const read = props.items.reduce((count, item) => {
+    return count + sectionProgressKeys.filter((section) => Boolean(readSections[item.id]?.[section])).length
+  }, 0)
+
+  emit('progressChange', { total, read })
+}
+
 const isExpanded = (itemId: string, section: ExpandSectionKey) => {
   return Boolean(expandedSections[itemId]?.[section])
 }
@@ -70,7 +101,16 @@ const markAsRead = (itemId: string, section: ExpandSectionKey) => {
   }
 
   readSections[itemId][section] = true
+  emitProgressChange()
 }
+
+watch(
+  () => props.items,
+  () => {
+    emitProgressChange()
+  },
+  { immediate: true, deep: true }
+)
 
 const getSectionCount = (itemId: string) => {
   const state = expandedSections[itemId]
@@ -88,6 +128,16 @@ const getSectionTitle = (section: ExpandSectionKey) => {
   }
 
   return titleMap[section]
+}
+
+const getRankLabel = (index: number) => {
+  return `#${index + 1}`
+}
+
+const getHealthLabel = (level: HealthLevel) => {
+  if (level === 'risk') return '风险'
+  if (level === 'medium') return '中'
+  return '好'
 }
 
 const getMetricPreview = (section: ProductMetricBlock) => {
@@ -120,6 +170,146 @@ const getAdsSummaryRows = (highlight: MetricHighlightItem) => {
       value: index === 0 ? highlight.value : `${numericText}`
     }
   })
+}
+
+const getTemplateChartBarHeight = (metricWidth: number) => {
+  return Math.max(16, Math.round(metricWidth * 0.42))
+}
+
+const getTemplateChartNodes = (rows: Array<{ width: number }>) => {
+  const startX = 16
+  const stepX = 34
+  const baseY = 64
+
+  return rows.map((row, index) => {
+    const barHeight = getTemplateChartBarHeight(row.width)
+    const lift = Math.max(8, Math.round(row.width * 0.34))
+    return {
+      x: startX + index * stepX,
+      y: baseY - lift,
+      barHeight
+    }
+  })
+}
+
+const getTemplateChartPoints = (rows: Array<{ width: number }>) => {
+  return getTemplateChartNodes(rows)
+    .map((node) => `${node.x},${node.y}`)
+    .join(' ')
+}
+
+const focusMetricTypeOrder: Array<'today' | 'avg' | 'lastweek' | 'target'> = ['today', 'avg', 'lastweek', 'target']
+const focusMetricLabelMap: Record<'today' | 'avg' | 'lastweek' | 'target', string> = {
+  today: '今日',
+  avg: '平均',
+  lastweek: '上周',
+  target: '目标'
+}
+const focusMetricFallbackRatio: Record<'today' | 'avg' | 'lastweek' | 'target', number> = {
+  today: 1,
+  avg: 0.88,
+  lastweek: 0.82,
+  target: 0.93
+}
+const focusMetricPointXList = [20.5, 44.5, 68.5, 92.5]
+
+const getFocusMetricPointY = (barHeight: number) => {
+  const svgHeight = 78
+  const chartBoxHeight = 64
+  const baselineBottom = 9
+  const baselineY = svgHeight - (baselineBottom / chartBoxHeight) * svgHeight
+  const scaledBarHeight = (barHeight / chartBoxHeight) * svgHeight
+  return Number((baselineY - scaledBarHeight).toFixed(1))
+}
+
+const getFocusMetricRows = (section: ProductMetricBlock, highlight: MetricHighlightItem): FocusMetricRow[] => {
+  const compareMap = new Map(section.compareList.map((item) => [item.type, item]))
+  const rawHeights = focusMetricTypeOrder.map((type) => compareMap.get(type)?.height ?? Math.round(56 * focusMetricFallbackRatio[type]))
+  const minHeight = Math.min(...rawHeights)
+  const maxHeight = Math.max(...rawHeights)
+  const heightRange = Math.max(1, maxHeight - minHeight)
+  const parsedHighlight = parseMetricNumber(highlight.value)
+
+  return focusMetricTypeOrder.map((type, index) => {
+    const compareItem = compareMap.get(type)
+    const rawBarHeight = compareItem ? compareItem.height : Math.round(56 * focusMetricFallbackRatio[type])
+    const normalizedHeight = (rawBarHeight - minHeight) / heightRange
+    const ratio = compareItem ? compareItem.height / Math.max(1, rawHeights[0]) : focusMetricFallbackRatio[type]
+    const barHeight = Math.round(11 + normalizedHeight * 19)
+    const value = type === 'today'
+      ? highlight.value
+      : parsedHighlight === null
+        ? compareItem?.value ?? highlight.value
+        : scaleMetricValue(highlight.value, ratio)
+
+    return {
+      key: type,
+      label: focusMetricLabelMap[type],
+      value,
+      barHeight,
+      pointX: focusMetricPointXList[index] ?? focusMetricPointXList[focusMetricPointXList.length - 1],
+      pointY: getFocusMetricPointY(barHeight)
+    }
+  })
+}
+
+const getFocusMetricCards = (section: ProductMetricBlock): FocusMetricCard[] => {
+  return section.highlights.map((highlight) => ({
+    key: highlight.label,
+    title: highlight.label,
+    value: highlight.value,
+    rows: getFocusMetricRows(section, highlight)
+  }))
+}
+
+const getFocusMetricRowsFromAds = (highlight: MetricHighlightItem): FocusMetricRow[] => {
+  const rows = getAdsSummaryRows(highlight)
+  const rawHeights = rows.map((row) => row.width)
+  const minHeight = Math.min(...rawHeights)
+  const maxHeight = Math.max(...rawHeights)
+  const heightRange = Math.max(1, maxHeight - minHeight)
+  return rows.map((row, index) => {
+    const normalizedHeight = (row.width - minHeight) / heightRange
+    const barHeight = Math.round(11 + normalizedHeight * 19)
+
+    return {
+      key: focusMetricTypeOrder[index],
+      label: row.label,
+      value: row.value,
+      barHeight,
+      pointX: focusMetricPointXList[index] ?? focusMetricPointXList[focusMetricPointXList.length - 1],
+      pointY: getFocusMetricPointY(barHeight)
+    }
+  })
+}
+
+const getFocusMetricCardsFromAds = (section: ProductAdsBlock): FocusMetricCard[] => {
+  return section.highlights.map((highlight) => ({
+    key: highlight.label,
+    title: highlight.label,
+    value: highlight.value,
+    rows: getFocusMetricRowsFromAds(highlight)
+  }))
+}
+
+const getFocusMetricChartPoints = (rows: FocusMetricRow[]) => {
+  return rows.map((row) => `${row.pointX},${row.pointY}`).join(' ')
+}
+
+const getFocusMetricChartPath = (rows: FocusMetricRow[]) => {
+  if (!rows.length) return ''
+  if (rows.length === 1) return `M ${rows[0].pointX} ${rows[0].pointY}`
+
+  let path = `M ${rows[0].pointX} ${rows[0].pointY}`
+
+  for (let index = 0; index < rows.length - 1; index += 1) {
+    const current = rows[index]
+    const next = rows[index + 1]
+    const controlX = (current.pointX + next.pointX) / 2
+    path += ` C ${controlX} ${current.pointY}, ${controlX} ${next.pointY}, ${next.pointX} ${next.pointY}`
+  }
+
+  return path
 }
 
 const parseMetricNumber = (value: string) => {
@@ -170,6 +360,67 @@ const getSalesModules = (item: ProductOperationItem) => {
   ]
 }
 
+const shortenText = (text: string, max = 26) => {
+  const source = String(text ?? '').trim()
+  if (!source) return '--'
+  return source.length > max ? `${source.slice(0, max)}...` : source
+}
+
+const getTemplateReviewChips = (item: ProductOperationItem) => {
+  const comments = item.review.recentComments?.map((comment) => shortenText(comment.content, 24)) ?? []
+  const fallback = [shortenText(item.review.latestTitle, 24), shortenText(item.review.latestContent, 24)].filter(Boolean)
+  return [...comments, ...fallback].slice(0, 4)
+}
+
+const getSequenceNumber = (itemId: string) => {
+  const parsed = Number(String(itemId).replace(/\D/g, ''))
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const getCategoryRows = (item: ProductOperationItem) => {
+  const seq = getSequenceNumber(item.id)
+  return [
+    { rank: `#${2700 + seq * 19}`, text: 'in Pet Supplies' },
+    { rank: `#${Math.max(1, seq)}`, text: `in ${shortenText(item.productName, 26)}` }
+  ]
+}
+
+const getPreviewCards = (item: ProductOperationItem) => {
+  const buildCompareRows = (compareList: ProductMetricBlock['compareList']) =>
+    compareList.map((bar) => ({
+      label: bar.label,
+      width: Math.max(26, Math.min(100, bar.height * 1.6)),
+      value: bar.value
+    }))
+
+  return [
+    {
+      key: 'sales',
+      title: item.sales.title,
+      value: item.sales.highlights[0]?.value ?? '--',
+      rows: buildCompareRows(item.sales.compareList)
+    },
+    {
+      key: 'traffic',
+      title: item.traffic.title,
+      value: item.traffic.highlights[0]?.value ?? '--',
+      rows: buildCompareRows(item.traffic.compareList)
+    },
+    {
+      key: 'sp',
+      title: 'SP广告',
+      value: item.spAds.highlights[0]?.value ?? '--',
+      rows: item.spAds.highlights[0] ? getAdsSummaryRows(item.spAds.highlights[0]) : []
+    },
+    {
+      key: 'sbv',
+      title: 'SBV广告',
+      value: item.sbvAds.highlights[0]?.value ?? '--',
+      rows: item.sbvAds.highlights[0] ? getAdsSummaryRows(item.sbvAds.highlights[0]) : []
+    }
+  ]
+}
+
 </script>
 
 <template>
@@ -180,315 +431,280 @@ const getSalesModules = (item: ProductOperationItem) => {
       <span class="status-guide-item risk"><i></i> 风险：存在明显异常，建议优先处理</span>
     </div>
 
-    <div class="product-showcase-grid single-column-grid">
+    <div class="product-showcase-grid operation-reference-grid">
       <article
-        v-for="item in sortedItems"
+        v-for="(item, index) in sortedItems"
         :key="item.id"
-        class="operation-card expanded-operation-card vertical-flow-card"
+        class="operation-card reference-operation-card template-reference-card"
         :class="`card-level-${item.healthLevel}`"
       >
-        <div class="card-level-strip" :class="`strip-${item.healthLevel}`"></div>
-
-        <section class="operation-card-basic top-down-basic-layout">
-          <div class="product-top-tags top-tags-left wrapped-tags">
-            <div class="health-badge" :class="`health-badge-${item.healthLevel}`">
-              {{ item.healthLevel === 'risk' ? '风险' : item.healthLevel === 'medium' ? '中' : '好' }}
+        <div class="reference-rank-ribbon">{{ getRankLabel(index) }}</div>
+        <div class="template-card-shell">
+          <div class="template-image-wrap">
+            <div v-if="item.productImageUrl" class="template-image-box">
+              <img :src="item.productImageUrl" :alt="item.productName" class="template-product-image" />
             </div>
-            <div class="product-tag">{{ item.productTag }}</div>
-            <div class="info-chip">子ASIN {{ item.childAsin }}</div>
-            <div class="info-chip">SKU {{ item.childSku }}</div>
+            <div v-else class="template-image-box template-cover-box" :class="`product-cover-${item.coverTone}`">
+              <span>{{ item.coverText }}</span>
+            </div>
+            <div class="template-play-btn">▶</div>
           </div>
 
-          <div class="product-head-card listing-style-head-card vertical-listing-head-card">
-            <div class="listing-image-wrap vertical-listing-image-wrap">
-              <div v-if="item.productImageUrl" class="listing-image-real-wrap amazon-image-real-wrap">
-                <img :src="item.productImageUrl" :alt="item.productName" class="listing-image" />
-              </div>
-              <div v-else class="product-cover listing-style-cover amazon-listing-style-cover" :class="`product-cover-${item.coverTone}`">
-                <span>{{ item.coverText }}</span>
-              </div>
+          <div class="template-title-block">
+            <div class="template-product-title">{{ item.listingTitle || item.productName }}</div>
+            <div class="template-rating-line">
+              <span class="template-stars">★★★★★</span>
+              <span class="template-rating-count">{{ item.review.reviewCount }}</span>
             </div>
+            <div class="template-offer-line">4 offers from {{ item.listingPrice || '--' }}</div>
+          </div>
 
-            <div class="product-basic-content stacked-main-content listing-meta-content vertical-listing-meta-content">
-              <div class="stacked-title-block listing-title-block vertical-listing-title-block">
-                <div class="product-card-title stacked-name listing-main-title amazon-listing-title">{{ item.listingTitle || item.productName }}</div>
-                <div class="listing-price amazon-listing-price">{{ item.listingPrice || '--' }}</div>
-                <div class="product-card-subtitle stacked-subtitle amazon-listing-subtitle">{{ item.productName }} · {{ item.shopName }} · {{ item.siteName }}</div>
-              </div>
-
-              <div class="expand-summary-chip">已展开 {{ getSectionCount(item.id) }} 项</div>
+          <div class="template-asin-block">
+            <div class="template-asin-line">
+              <span>ASIN: {{ item.childAsin }}</span>
+              <span class="template-icon-line">◔ ◌ ⌁</span>
+            </div>
+            <div class="template-brand-line">
+              <span>品牌: <strong>{{ item.shopName }}</strong></span>
+              <span class="template-add-badge">加入产品库</span>
             </div>
           </div>
 
-          <div class="section-toggle-list compact-section-list">
-              <section class="inline-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'review') }" @click="toggleSection(item.id, 'review')">
-                  <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ getSectionTitle('review') }}</div>
-                  </div>
-                  <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-read-badge" :class="isRead(item.id, 'review') ? 'read' : 'unread'">{{ isRead(item.id, 'review') ? '已读' : '未读' }}</span>
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'review') }">⌄</span>
-                  </div>
-                </button>
-
-                <div v-if="isExpanded(item.id, 'review')" class="section-expand-panel review-section-expand-panel">
-                  <div class="review-thread-panel">
-                    <div class="review-thread-header">
-                      <div class="review-thread-title">最新评论</div>
-                    </div>
-
-                    <div class="review-thread-list">
-                      <article v-for="(comment, index) in (item.review.recentComments?.length ? item.review.recentComments : [{ author: item.review.latestAuthor, content: item.review.latestContent, date: item.review.latestDate }])" :key="`${item.id}-comment-${index}`" class="review-comment-card">
-                        <div class="review-comment-top">
-                          <div class="review-comment-author">{{ comment.author }}</div>
-                          <div class="review-comment-date">{{ comment.date || item.review.latestDate }}</div>
-                        </div>
-                        <div class="review-comment-content">{{ comment.content }}</div>
-                      </article>
-                    </div>
-
-                    <div class="section-read-action-row">
-                      <button class="section-read-btn" :class="{ done: isRead(item.id, 'review') }" @click="markAsRead(item.id, 'review')">{{ isRead(item.id, 'review') ? '已读' : '标记为已读' }}</button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="inline-section-card metric-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'sales') }" @click="toggleSection(item.id, 'sales')">
-                  <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ item.sales.title }}</div>
-                  </div>
-                  <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-read-badge" :class="isRead(item.id, 'sales') ? 'read' : 'unread'">{{ isRead(item.id, 'sales') ? '已读' : '未读' }}</span>
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sales') }">⌄</span>
-                  </div>
-                </button>
-                <div v-if="isExpanded(item.id, 'sales')" class="section-expand-panel">
-                  <div class="sales-summary-panel expanded-metric-summary-panel vertical-sales-summary-panel">
-                    <div v-for="module in getSalesModules(item)" :key="`${item.id}-${module.key}`" class="sales-module-block">
-                      <div class="sales-module-title">{{ module.title }}</div>
-                      <div class="ads-summary-grid sales-summary-grid vertical-sales-summary-grid">
-                        <div v-for="highlight in module.highlights" :key="`${module.key}-${highlight.label}`" class="ads-summary-item ads-visual-summary-item sales-visual-summary-item" :class="highlight.status">
-                          <div class="ads-summary-head">
-                            <div class="ads-summary-label">{{ highlight.label }}</div>
-                            <div class="ads-summary-value">{{ highlight.value }}</div>
-                          </div>
-                          <div class="ads-mini-chart refined-ads-mini-chart">
-                            <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                              <div v-for="row in getAdsSummaryRows(highlight)" :key="`${module.key}-${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                                <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                                <div class="ads-mini-chart-track">
-                                  <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
-                                </div>
-                                <div class="ads-mini-chart-row-value">{{ row.value }}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="section-read-action-row metric-read-action-row">
-                    <button class="section-read-btn" :class="{ done: isRead(item.id, 'sales') }" @click="markAsRead(item.id, 'sales')">{{ isRead(item.id, 'sales') ? '已读' : '标记为已读' }}</button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="inline-section-card metric-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'traffic') }" @click="toggleSection(item.id, 'traffic')">
-                  <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ item.traffic.title }}</div>
-                  </div>
-                  <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-read-badge" :class="isRead(item.id, 'traffic') ? 'read' : 'unread'">{{ isRead(item.id, 'traffic') ? '已读' : '未读' }}</span>
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'traffic') }">⌄</span>
-                  </div>
-                </button>
-                <div v-if="isExpanded(item.id, 'traffic')" class="section-expand-panel">
-                  <div class="sales-summary-panel expanded-metric-summary-panel">
-                    <div class="ads-summary-grid sales-summary-grid">
-                      <div v-for="highlight in item.traffic.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item sales-visual-summary-item" :class="highlight.status">
-                        <div class="ads-summary-head">
-                          <div class="ads-summary-label">{{ highlight.label }}</div>
-                          <div class="ads-summary-value">{{ highlight.value }}</div>
-                        </div>
-                        <div class="ads-mini-chart refined-ads-mini-chart">
-                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                              <div class="ads-mini-chart-track">
-                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
-                              </div>
-                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="section-read-action-row metric-read-action-row">
-                    <button class="section-read-btn" :class="{ done: isRead(item.id, 'traffic') }" @click="markAsRead(item.id, 'traffic')">{{ isRead(item.id, 'traffic') ? '已读' : '标记为已读' }}</button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="inline-section-card ads-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'spAds') }" @click="toggleSection(item.id, 'spAds')">
-                  <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ getSectionTitle('spAds') }}</div>
-                  </div>
-                  <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-read-badge" :class="isRead(item.id, 'spAds') ? 'read' : 'unread'">{{ isRead(item.id, 'spAds') ? '已读' : '未读' }}</span>
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'spAds') }">⌄</span>
-                  </div>
-                </button>
-                <div v-if="isExpanded(item.id, 'spAds')" class="section-expand-panel">
-                  <div class="ads-summary-panel expanded-ads-summary-panel">
-                    <div class="ads-summary-grid">
-                      <div v-for="highlight in item.spAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
-                        <div class="ads-summary-head">
-                          <div class="ads-summary-label">{{ highlight.label }}</div>
-                          <div class="ads-summary-value">{{ highlight.value }}</div>
-                        </div>
-                        <div class="ads-mini-chart refined-ads-mini-chart">
-                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                              <div class="ads-mini-chart-track">
-                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
-                              </div>
-                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
-                  <div class="detail-table-scroll ads-table-scroll">
-                    <div class="detail-data-table ads-activity-table-wrap">
-                      <div class="detail-table-header">SP广告活动明细</div>
-                      <table class="ads-activity-table sticky-ads-table">
-                        <thead>
-                          <tr>
-                            <th>广告活动名称</th>
-                            <th>曝光量</th>
-                            <th>点击量</th>
-                            <th>点击率 (CTR)</th>
-                            <th>单次点击成本 (CPC)</th>
-                            <th>花费</th>
-                            <th>总销售额</th>
-                            <th>广告投入产出比</th>
-                            <th>总订单数</th>
-                            <th>转化率 (CVR)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`">
-                            <td>
-                              <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
-                              <span v-else>{{ activity.campaignName }}</span>
-                            </td>
-                            <td>{{ activity.impressions }}</td>
-                            <td>{{ activity.clicks }}</td>
-                            <td>{{ activity.ctr }}</td>
-                            <td>{{ activity.cpc }}</td>
-                            <td>{{ activity.cost }}</td>
-                            <td>{{ activity.sales }}</td>
-                            <td>{{ activity.acos }}</td>
-                            <td>{{ activity.orders }}</td>
-                            <td>{{ activity.cvr }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div class="section-read-action-row">
-                    <button class="section-read-btn" :class="{ done: isRead(item.id, 'spAds') }" @click="markAsRead(item.id, 'spAds')">{{ isRead(item.id, 'spAds') ? '已读' : '标记为已读' }}</button>
-                  </div>
-                </div>
-              </section>
-
-              <section class="inline-section-card ads-section-card">
-                <button class="section-toggle-btn compact-toggle-btn" :class="{ 'section-toggle-btn-unread': !isRead(item.id, 'sbvAds') }" @click="toggleSection(item.id, 'sbvAds')">
-                  <div class="section-toggle-main">
-                    <div class="section-toggle-title">{{ getSectionTitle('sbvAds') }}</div>
-                  </div>
-                  <div class="section-toggle-right compact-toggle-right">
-                    <span class="section-read-badge" :class="isRead(item.id, 'sbvAds') ? 'read' : 'unread'">{{ isRead(item.id, 'sbvAds') ? '已读' : '未读' }}</span>
-                    <span class="section-toggle-arrow" :class="{ open: isExpanded(item.id, 'sbvAds') }">⌄</span>
-                  </div>
-                </button>
-                <div v-if="isExpanded(item.id, 'sbvAds')" class="section-expand-panel">
-                  <div class="ads-summary-panel expanded-ads-summary-panel">
-                    <div class="ads-summary-grid">
-                      <div v-for="highlight in item.sbvAds.highlights" :key="highlight.label" class="ads-summary-item ads-visual-summary-item" :class="highlight.status">
-                        <div class="ads-summary-head">
-                          <div class="ads-summary-label">{{ highlight.label }}</div>
-                          <div class="ads-summary-value">{{ highlight.value }}</div>
-                        </div>
-                        <div class="ads-mini-chart refined-ads-mini-chart">
-                          <div class="ads-mini-chart-bars refined-ads-mini-chart-bars">
-                            <div v-for="row in getAdsSummaryRows(highlight)" :key="`${highlight.label}-${row.label}`" class="ads-mini-chart-row refined-ads-mini-chart-row">
-                              <div class="ads-mini-chart-row-label">{{ row.label }}</div>
-                              <div class="ads-mini-chart-track">
-                                <span class="ads-mini-chart-bar colorful-ads-mini-chart-bar" :style="{ width: `${row.width}%` }"></span>
-                              </div>
-                              <div class="ads-mini-chart-row-value">{{ row.value }}</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
-                  <div class="detail-table-scroll ads-table-scroll">
-                    <div class="detail-data-table ads-activity-table-wrap">
-                      <div class="detail-table-header">SBV广告活动明细</div>
-                      <table class="ads-activity-table sticky-ads-table">
-                        <thead>
-                          <tr>
-                            <th>广告活动名称</th>
-                            <th>曝光量</th>
-                            <th>点击量</th>
-                            <th>点击率 (CTR)</th>
-                            <th>单次点击成本 (CPC)</th>
-                            <th>花费</th>
-                            <th>总销售额</th>
-                            <th>广告投入产出比</th>
-                            <th>总订单数</th>
-                            <th>转化率 (CVR)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`">
-                            <td>
-                              <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
-                              <span v-else>{{ activity.campaignName }}</span>
-                            </td>
-                            <td>{{ activity.impressions }}</td>
-                            <td>{{ activity.clicks }}</td>
-                            <td>{{ activity.ctr }}</td>
-                            <td>{{ activity.cpc }}</td>
-                            <td>{{ activity.cost }}</td>
-                            <td>{{ activity.sales }}</td>
-                            <td>{{ activity.acos }}</td>
-                            <td>{{ activity.orders }}</td>
-                            <td>{{ activity.cvr }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <div class="section-read-action-row">
-                    <button class="section-read-btn" :class="{ done: isRead(item.id, 'sbvAds') }" @click="markAsRead(item.id, 'sbvAds')">{{ isRead(item.id, 'sbvAds') ? '已读' : '标记为已读' }}</button>
-                  </div>
-                </div>
-              </section>
+          <div class="template-rank-block">
+            <div v-for="row in getCategoryRows(item)" :key="`${item.id}-${row.rank}-${row.text}`" class="template-rank-row">
+              <span class="template-rank-no">{{ row.rank }}</span>
+              <span class="template-rank-text">{{ row.text }}</span>
             </div>
-        </section>
+          </div>
+
+          <div class="template-accordion-list">
+            <section class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'review') }" @click="toggleSection(item.id, 'review')">
+                <span>Top highlights <em>（评价信息）</em></span>
+                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'review') }">⌄</span>
+              </button>
+              <div v-if="isExpanded(item.id, 'review')" class="template-accordion-panel">
+                <div class="template-chip-grid">
+                  <span v-for="chip in getTemplateReviewChips(item)" :key="`${item.id}-${chip}`" class="template-chip">{{ chip }}</span>
+                </div>
+                <div class="template-inline-action">
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'review') }" @click="markAsRead(item.id, 'review')">{{ isRead(item.id, 'review') ? '已读' : '标记为已读' }}</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'sales') }" @click="toggleSection(item.id, 'sales')">
+                <span>Product specifications <em>（销售数据）</em></span>
+                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'sales') }">⌄</span>
+              </button>
+              <div v-if="isExpanded(item.id, 'sales')" class="template-accordion-panel">
+                <div class="template-inline-action">
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'sales') }" @click="markAsRead(item.id, 'sales')">{{ isRead(item.id, 'sales') ? '已读' : '标记为已读' }}</button>
+                </div>
+                <div class="template-focus-metric-grid">
+                  <div v-for="card in getFocusMetricCards(item.sales)" :key="`${item.id}-sales-${card.key}`" class="template-focus-metric-card">
+                    <div class="template-focus-metric-title">{{ card.title }}</div>
+                    <div class="template-focus-metric-main">{{ card.value }}</div>
+                    <div class="template-focus-metric-body">
+                      <div class="template-focus-metric-chart-area">
+                        <div class="template-focus-metric-chart-box">
+                          <span class="template-focus-metric-chart-baseline"></span>
+                          <div class="template-focus-metric-chart-series">
+                            <div v-for="row in card.rows" :key="`${item.id}-sales-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
+                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
+                            </div>
+                          </div>
+                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'traffic') }" @click="toggleSection(item.id, 'traffic')">
+                <span>About the Brand <em>（流量数据）</em></span>
+                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'traffic') }">⌄</span>
+              </button>
+              <div v-if="isExpanded(item.id, 'traffic')" class="template-accordion-panel">
+                <div class="template-inline-action">
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'traffic') }" @click="markAsRead(item.id, 'traffic')">{{ isRead(item.id, 'traffic') ? '已读' : '标记为已读' }}</button>
+                </div>
+                <div class="template-focus-metric-grid">
+                  <div v-for="card in getFocusMetricCards(item.traffic)" :key="`${item.id}-traffic-${card.key}`" class="template-focus-metric-card">
+                    <div class="template-focus-metric-title">{{ card.title }}</div>
+                    <div class="template-focus-metric-main">{{ card.value }}</div>
+                    <div class="template-focus-metric-body">
+                      <div class="template-focus-metric-chart-area">
+                        <div class="template-focus-metric-chart-box">
+                          <span class="template-focus-metric-chart-baseline"></span>
+                          <div class="template-focus-metric-chart-series">
+                            <div v-for="row in card.rows" :key="`${item.id}-traffic-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
+                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
+                            </div>
+                          </div>
+                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'spAds') }" @click="toggleSection(item.id, 'spAds')">
+                <span>SP Ads <em>（SP广告）</em></span>
+                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'spAds') }">⌄</span>
+              </button>
+              <div v-if="isExpanded(item.id, 'spAds')" class="template-accordion-panel">
+                <div class="template-inline-action">
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'spAds') }" @click="markAsRead(item.id, 'spAds')">{{ isRead(item.id, 'spAds') ? '已读' : '标记为已读' }}</button>
+                </div>
+                <div class="template-focus-metric-grid">
+                  <div v-for="card in getFocusMetricCardsFromAds(item.spAds)" :key="`${item.id}-sp-${card.key}`" class="template-focus-metric-card">
+                    <div class="template-focus-metric-title">{{ card.title }}</div>
+                    <div class="template-focus-metric-main">{{ card.value }}</div>
+                    <div class="template-focus-metric-body">
+                      <div class="template-focus-metric-chart-area">
+                        <div class="template-focus-metric-chart-box">
+                          <span class="template-focus-metric-chart-baseline"></span>
+                          <div class="template-focus-metric-chart-series">
+                            <div v-for="row in card.rows" :key="`${item.id}-sp-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
+                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
+                            </div>
+                          </div>
+                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
+                <div class="detail-table-scroll ads-table-scroll">
+                  <div class="detail-data-table ads-activity-table-wrap">
+                    <div class="detail-table-header">SP广告活动明细</div>
+                    <table class="ads-activity-table sticky-ads-table">
+                      <thead>
+                        <tr>
+                          <th>广告活动名称</th>
+                          <th>曝光量</th>
+                          <th>点击量</th>
+                          <th>点击率 (CTR)</th>
+                          <th>单次点击成本 (CPC)</th>
+                          <th>花费</th>
+                          <th>总销售额</th>
+                          <th>广告投入产出比</th>
+                          <th>总订单数</th>
+                          <th>转化率 (CVR)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`">
+                          <td>
+                            <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
+                            <span v-else>{{ activity.campaignName }}</span>
+                          </td>
+                          <td>{{ activity.impressions }}</td>
+                          <td>{{ activity.clicks }}</td>
+                          <td>{{ activity.ctr }}</td>
+                          <td>{{ activity.cpc }}</td>
+                          <td>{{ activity.cost }}</td>
+                          <td>{{ activity.sales }}</td>
+                          <td>{{ activity.acos }}</td>
+                          <td>{{ activity.orders }}</td>
+                          <td>{{ activity.cvr }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'sbvAds') }" @click="toggleSection(item.id, 'sbvAds')">
+                <span>SBV Ads <em>（SBV广告）</em></span>
+                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'sbvAds') }">⌄</span>
+              </button>
+              <div v-if="isExpanded(item.id, 'sbvAds')" class="template-accordion-panel">
+                <div class="template-inline-action">
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'sbvAds') }" @click="markAsRead(item.id, 'sbvAds')">{{ isRead(item.id, 'sbvAds') ? '已读' : '标记为已读' }}</button>
+                </div>
+                <div class="template-focus-metric-grid">
+                  <div v-for="card in getFocusMetricCardsFromAds(item.sbvAds)" :key="`${item.id}-sbv-${card.key}`" class="template-focus-metric-card">
+                    <div class="template-focus-metric-title">{{ card.title }}</div>
+                    <div class="template-focus-metric-main">{{ card.value }}</div>
+                    <div class="template-focus-metric-body">
+                      <div class="template-focus-metric-chart-area">
+                        <div class="template-focus-metric-chart-box">
+                          <span class="template-focus-metric-chart-baseline"></span>
+                          <div class="template-focus-metric-chart-series">
+                            <div v-for="row in card.rows" :key="`${item.id}-sbv-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
+                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
+                            </div>
+                          </div>
+                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
+                <div class="detail-table-scroll ads-table-scroll">
+                  <div class="detail-data-table ads-activity-table-wrap">
+                    <div class="detail-table-header">SBV广告活动明细</div>
+                    <table class="ads-activity-table sticky-ads-table">
+                      <thead>
+                        <tr>
+                          <th>广告活动名称</th>
+                          <th>曝光量</th>
+                          <th>点击量</th>
+                          <th>点击率 (CTR)</th>
+                          <th>单次点击成本 (CPC)</th>
+                          <th>花费</th>
+                          <th>总销售额</th>
+                          <th>广告投入产出比</th>
+                          <th>总订单数</th>
+                          <th>转化率 (CVR)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`">
+                          <td>
+                            <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
+                            <span v-else>{{ activity.campaignName }}</span>
+                          </td>
+                          <td>{{ activity.impressions }}</td>
+                          <td>{{ activity.clicks }}</td>
+                          <td>{{ activity.ctr }}</td>
+                          <td>{{ activity.cpc }}</td>
+                          <td>{{ activity.cost }}</td>
+                          <td>{{ activity.sales }}</td>
+                          <td>{{ activity.acos }}</td>
+                          <td>{{ activity.orders }}</td>
+                          <td>{{ activity.cvr }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+        </div>
       </article>
     </div>
   </div>

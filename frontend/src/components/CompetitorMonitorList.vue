@@ -7,7 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <div v-if="items.length" class="uniform-card-grid slim-uniform-grid">
+  <div v-if="items.length" class="uniform-card-grid slim-uniform-grid module-reference-grid">
     <article v-for="item in items" :key="item.id" class="unified-info-card refined-info-card">
       <div class="uniform-card-top">
         <div class="uniform-card-badge uniform-badge-monitor">监控</div>
