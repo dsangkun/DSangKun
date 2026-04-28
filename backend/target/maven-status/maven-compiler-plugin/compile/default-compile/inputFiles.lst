@@ -5,11 +5,16 @@ D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerc
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\controller\WorkbenchController.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\CompetitorChangeItemDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\MetricCompareItemDTO.java
+D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\MetricHighlightItemDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\NewArrivalActionRequest.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\NewArrivalActionResponse.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\NewArrivalItemDTO.java
+D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductAdActivityItemDTO.java
+D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductAdsBlockDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductMetricBlockDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductOperationItemDTO.java
+D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductReviewCommentDTO.java
+D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\ProductReviewInfoDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\dto\WorkbenchOverviewDTO.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\EcommerceOpsBackendApplication.java
 D:\Programs\电商运营管理系统\backend\src\main\java\com\dsangkun\ecommerceops\service\WorkbenchService.java

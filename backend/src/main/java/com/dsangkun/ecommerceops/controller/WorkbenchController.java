@@ -42,7 +42,14 @@ public class WorkbenchController {
     }
 
     @GetMapping("/operation-data")
-    public ApiResponse<List<ProductOperationItemDTO>> operationData() {
-        return ApiResponse.ok(workbenchService.getOperationData());
+    public ApiResponse<List<ProductOperationItemDTO>> operationData(
+            @RequestParam(required = false) String date
+    ) {
+        return ApiResponse.ok(workbenchService.getOperationData(date));
+    }
+
+    @GetMapping("/operation-dates")
+    public ApiResponse<List<String>> operationDates() {
+        return ApiResponse.ok(workbenchService.getOperationDates());
     }
 }

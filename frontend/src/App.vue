@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { currentUser, isAuthenticated, logout } from './auth/session'
 
 const route = useRoute()
+const router = useRouter()
 
 const navItems = [
   { name: '俄罗斯WB运营', path: '/wb' },
@@ -11,12 +13,29 @@ const navItems = [
 ]
 
 const currentSectionName = computed(() => {
+  if (route.path.startsWith('/product-task/')) {
+    return 'Amazon运营推进器'
+  }
+
+  if (route.path === '/login') {
+    return '登录'
+  }
+
   return navItems.find((item) => item.path === route.path)?.name ?? 'Amazon运营推进器'
 })
+
+const handleLogout = () => {
+  logout()
+  void router.replace('/login')
+}
 </script>
 
 <template>
-  <div class="app-shell">
+  <div v-if="route.path === '/login'" class="login-layout-shell">
+    <RouterView />
+  </div>
+
+  <div v-else class="app-shell">
     <aside class="shell-sidebar">
       <div class="brand-block">
         <div class="brand-mark">A</div>
@@ -44,6 +63,14 @@ const currentSectionName = computed(() => {
         <div>
           <div class="shell-topbar-label">当前系统</div>
           <h1 class="shell-topbar-title">{{ currentSectionName }}</h1>
+        </div>
+
+        <div v-if="isAuthenticated" class="shell-user-panel">
+          <div class="shell-user-meta">
+            <span class="shell-user-label">当前登录</span>
+            <strong class="shell-user-name">{{ currentUser?.displayName }}</strong>
+          </div>
+          <button class="shell-logout-btn" title="退出当前账号并返回登录页" @click="handleLogout">退出登录</button>
         </div>
       </header>
 

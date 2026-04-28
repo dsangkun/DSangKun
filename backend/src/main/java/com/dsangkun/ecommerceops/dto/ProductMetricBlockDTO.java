@@ -4,6 +4,9 @@ import java.util.List;
 
 public record ProductMetricBlockDTO(
         String title,
-        List<MetricCompareItemDTO> compareList
+        List<MetricCompareItemDTO> compareList,
+        List<MetricHighlightItemDTO> highlights,
+        String targetValue,
+        String targetNote
 ) {
 }

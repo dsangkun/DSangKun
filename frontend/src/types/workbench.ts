@@ -99,6 +99,7 @@ export interface ProductOperationItem {
   shopName: string
   siteName: string
   productTag: string
+  ownerName?: string
   coverText: string
   coverTone: 'blue' | 'green' | 'orange' | 'purple'
   listingTitle?: string
@@ -111,4 +112,13 @@ export interface ProductOperationItem {
   traffic: ProductMetricBlock
   spAds: ProductAdsBlock
   sbvAds: ProductAdsBlock
+}
+
+export interface ParentOperationCard extends ProductOperationItem {
+  parentAsin: string
+  parentProductName: string
+  childItems: ProductOperationItem[]
+  childAsins: string[]
+  childProductNames: string[]
+  hasSbv: boolean
 }

@@ -13,7 +13,10 @@ defineProps<{
         <h2 class="section-title template-section-title">{{ title }}</h2>
         <p class="section-desc template-section-desc">{{ desc }}</p>
       </div>
-      <div class="badge template-section-badge">{{ badge }}</div>
+      <div class="template-section-header-right">
+        <slot name="header-extra" />
+        <div class="badge template-section-badge">{{ badge }}</div>
+      </div>
     </div>
     <slot />
   </section>

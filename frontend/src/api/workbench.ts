@@ -49,6 +49,11 @@ export function fetchCompetitorChanges() {
   return request<CompetitorChangeItem[]>('/api/workbench/competitor-changes')
 }
 
-export function fetchOperationData() {
-  return request<ProductOperationItem[]>('/api/workbench/operation-data')
+export function fetchOperationData(date?: string) {
+  const query = date ? `?date=${encodeURIComponent(date)}` : ''
+  return request<ProductOperationItem[]>(`/api/workbench/operation-data${query}`)
+}
+
+export function fetchOperationDates() {
+  return request<string[]>('/api/workbench/operation-dates')
 }

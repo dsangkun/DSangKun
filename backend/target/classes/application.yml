@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: ecommerce-ops-backend
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/ecommerce_ops?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
 springdoc:
   swagger-ui:

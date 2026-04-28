@@ -1,38 +1,38 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
-import type { MetricHighlightItem, ProductAdsBlock, ProductMetricBlock, ProductOperationItem } from '../types/workbench'
+import { useRouter } from 'vue-router'
+import type { ParentOperationCard, ProductAdsBlock, ProductMetricBlock } from '../types/workbench'
 
 type HealthLevel = 'good' | 'medium' | 'risk'
 type ExpandSectionKey = 'review' | 'sales' | 'traffic' | 'spAds' | 'sbvAds'
+type TaskLevel = 'warn' | 'risk'
+
+type RuleTask = {
+  id: string
+  title: string
+  level: TaskLevel
+  trigger: string
+  summary: string
+  evidence: string[]
+  action: string
+  sourceChildAsin?: string
+  sourceChildName?: string
+}
 
 const props = defineProps<{
-  items: ProductOperationItem[]
+  items: ParentOperationCard[]
 }>()
 
 const emit = defineEmits<{
   progressChange: [payload: { total: number, read: number }]
 }>()
 
-type FocusMetricRow = {
-  key: 'today' | 'avg' | 'lastweek' | 'target'
-  label: string
-  value: string
-  barHeight: number
-  pointX: number
-  pointY: number
-}
-
-type FocusMetricCard = {
-  key: string
-  title: string
-  value: string
-  rows: FocusMetricRow[]
-}
-
+const router = useRouter()
 const expandedSections = reactive<Record<string, Partial<Record<ExpandSectionKey, boolean>>>>({})
 const readSections = reactive<Record<string, Partial<Record<ExpandSectionKey, boolean>>>>({})
 
 const hasItems = computed(() => props.items.length > 0)
+const sectionProgressKeys: ExpandSectionKey[] = ['review', 'sales', 'traffic', 'spAds', 'sbvAds']
 
 const getLevelWeight = (level: HealthLevel) => {
   if (level === 'risk') return 3
@@ -40,21 +40,24 @@ const getLevelWeight = (level: HealthLevel) => {
   return 1
 }
 
-const getCardLevel = (item: ProductOperationItem): HealthLevel => {
-  const highlightStatuses = [
-    ...item.sales.highlights,
-    ...item.traffic.highlights,
-    ...item.spAds.highlights,
-    ...item.sbvAds.highlights
-  ].map((highlight) => highlight.status ?? 'neutral')
+const parseNumber = (value: string | number | undefined | null) => {
+  const parsed = Number(String(value ?? '').replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(parsed) ? parsed : null
+}
 
-  if (highlightStatuses.includes('risk') || Number(item.review.badReviewCount) >= 3) {
-    return 'risk'
-  }
+const getItemSectionTasks = (item: ParentOperationCard, section: ExpandSectionKey): RuleTask[] => {
+  const tasks = item.childItems.flatMap((child) => buildSectionTasksFromChild(item, child, section))
+  return tasks.sort((a, b) => (a.level === 'risk' && b.level !== 'risk' ? -1 : a.level !== 'risk' && b.level === 'risk' ? 1 : 0))
+}
 
-  if (highlightStatuses.includes('warn') || Number(item.review.badReviewCount) > 0) {
-    return 'medium'
-  }
+const hasChildData = (item: ParentOperationCard) => item.childItems.length > 0
+
+const getCardLevel = (item: ParentOperationCard): HealthLevel => {
+  const hasRisk = sectionProgressKeys.some((section) => getItemSectionTasks(item, section).some((task) => task.level === 'risk'))
+  if (hasRisk) return 'risk'
+
+  const hasWarn = sectionProgressKeys.some((section) => getItemSectionTasks(item, section).length > 0)
+  if (hasWarn) return 'medium'
 
   return 'good'
 }
@@ -68,8 +71,6 @@ const sortedItems = computed(() => {
     .sort((a, b) => getLevelWeight(b.healthLevel) - getLevelWeight(a.healthLevel))
 })
 
-const sectionProgressKeys: ExpandSectionKey[] = ['review', 'sales', 'traffic', 'spAds', 'sbvAds']
-
 const emitProgressChange = () => {
   const total = props.items.length * sectionProgressKeys.length
   const read = props.items.reduce((count, item) => {
@@ -79,27 +80,17 @@ const emitProgressChange = () => {
   emit('progressChange', { total, read })
 }
 
-const isExpanded = (itemId: string, section: ExpandSectionKey) => {
-  return Boolean(expandedSections[itemId]?.[section])
-}
+const isExpanded = (itemId: string, section: ExpandSectionKey) => Boolean(expandedSections[itemId]?.[section])
 
 const toggleSection = (itemId: string, section: ExpandSectionKey) => {
-  if (!expandedSections[itemId]) {
-    expandedSections[itemId] = {}
-  }
-
+  if (!expandedSections[itemId]) expandedSections[itemId] = {}
   expandedSections[itemId][section] = !expandedSections[itemId][section]
 }
 
-const isRead = (itemId: string, section: ExpandSectionKey) => {
-  return Boolean(readSections[itemId]?.[section])
-}
+const isRead = (itemId: string, section: ExpandSectionKey) => Boolean(readSections[itemId]?.[section])
 
 const markAsRead = (itemId: string, section: ExpandSectionKey) => {
-  if (!readSections[itemId]) {
-    readSections[itemId] = {}
-  }
-
+  if (!readSections[itemId]) readSections[itemId] = {}
   readSections[itemId][section] = true
   emitProgressChange()
 }
@@ -112,252 +103,17 @@ watch(
   { immediate: true, deep: true }
 )
 
-const getSectionCount = (itemId: string) => {
-  const state = expandedSections[itemId]
-  if (!state) return 0
-  return Object.values(state).filter(Boolean).length
-}
+const getRankLabel = (index: number) => `#${index + 1}`
 
 const getSectionTitle = (section: ExpandSectionKey) => {
   const titleMap: Record<ExpandSectionKey, string> = {
-    review: '评价信息',
-    sales: '销售数据',
-    traffic: '流量数据',
-    spAds: 'SP广告',
-    sbvAds: 'SBV广告'
+    review: '评价异常任务',
+    sales: '销售异常任务',
+    traffic: '流量异常任务',
+    spAds: 'SP广告异常任务',
+    sbvAds: 'SBV广告异常任务'
   }
-
   return titleMap[section]
-}
-
-const getRankLabel = (index: number) => {
-  return `#${index + 1}`
-}
-
-const getHealthLabel = (level: HealthLevel) => {
-  if (level === 'risk') return '风险'
-  if (level === 'medium') return '中'
-  return '好'
-}
-
-const getMetricPreview = (section: ProductMetricBlock) => {
-  return section.compareList.map((item) => `${item.label}${item.value}`).join(' / ')
-}
-
-const getAdsSummaryRows = (highlight: MetricHighlightItem) => {
-  const source = `${highlight.label}-${highlight.value}-${highlight.status ?? 'neutral'}`
-  let seed = 0
-
-  for (const char of source) {
-    seed = (seed * 31 + char.charCodeAt(0)) % 9973
-  }
-
-  const labels = ['今日', '平均', '上周', '目标']
-  const baseMap: Record<string, number[]> = {
-    good: [88, 72, 80, 76],
-    warn: [74, 82, 68, 70],
-    risk: [62, 78, 58, 66],
-    neutral: [80, 76, 72, 74]
-  }
-
-  const base = baseMap[highlight.status ?? 'neutral'] ?? baseMap.neutral
-  return labels.map((label, index) => {
-    const width = Math.max(34, Math.min(100, base[index] - ((seed >> (index * 2)) % 10)))
-    const numericText = String(highlight.value).replace(/^\$/, '')
-    return {
-      label,
-      width,
-      value: index === 0 ? highlight.value : `${numericText}`
-    }
-  })
-}
-
-const getTemplateChartBarHeight = (metricWidth: number) => {
-  return Math.max(16, Math.round(metricWidth * 0.42))
-}
-
-const getTemplateChartNodes = (rows: Array<{ width: number }>) => {
-  const startX = 16
-  const stepX = 34
-  const baseY = 64
-
-  return rows.map((row, index) => {
-    const barHeight = getTemplateChartBarHeight(row.width)
-    const lift = Math.max(8, Math.round(row.width * 0.34))
-    return {
-      x: startX + index * stepX,
-      y: baseY - lift,
-      barHeight
-    }
-  })
-}
-
-const getTemplateChartPoints = (rows: Array<{ width: number }>) => {
-  return getTemplateChartNodes(rows)
-    .map((node) => `${node.x},${node.y}`)
-    .join(' ')
-}
-
-const focusMetricTypeOrder: Array<'today' | 'avg' | 'lastweek' | 'target'> = ['today', 'avg', 'lastweek', 'target']
-const focusMetricLabelMap: Record<'today' | 'avg' | 'lastweek' | 'target', string> = {
-  today: '今日',
-  avg: '平均',
-  lastweek: '上周',
-  target: '目标'
-}
-const focusMetricFallbackRatio: Record<'today' | 'avg' | 'lastweek' | 'target', number> = {
-  today: 1,
-  avg: 0.88,
-  lastweek: 0.82,
-  target: 0.93
-}
-const focusMetricPointXList = [20.5, 44.5, 68.5, 92.5]
-
-const getFocusMetricPointY = (barHeight: number) => {
-  const svgHeight = 78
-  const chartBoxHeight = 64
-  const baselineBottom = 9
-  const baselineY = svgHeight - (baselineBottom / chartBoxHeight) * svgHeight
-  const scaledBarHeight = (barHeight / chartBoxHeight) * svgHeight
-  return Number((baselineY - scaledBarHeight).toFixed(1))
-}
-
-const getFocusMetricRows = (section: ProductMetricBlock, highlight: MetricHighlightItem): FocusMetricRow[] => {
-  const compareMap = new Map(section.compareList.map((item) => [item.type, item]))
-  const rawHeights = focusMetricTypeOrder.map((type) => compareMap.get(type)?.height ?? Math.round(56 * focusMetricFallbackRatio[type]))
-  const minHeight = Math.min(...rawHeights)
-  const maxHeight = Math.max(...rawHeights)
-  const heightRange = Math.max(1, maxHeight - minHeight)
-  const parsedHighlight = parseMetricNumber(highlight.value)
-
-  return focusMetricTypeOrder.map((type, index) => {
-    const compareItem = compareMap.get(type)
-    const rawBarHeight = compareItem ? compareItem.height : Math.round(56 * focusMetricFallbackRatio[type])
-    const normalizedHeight = (rawBarHeight - minHeight) / heightRange
-    const ratio = compareItem ? compareItem.height / Math.max(1, rawHeights[0]) : focusMetricFallbackRatio[type]
-    const barHeight = Math.round(11 + normalizedHeight * 19)
-    const value = type === 'today'
-      ? highlight.value
-      : parsedHighlight === null
-        ? compareItem?.value ?? highlight.value
-        : scaleMetricValue(highlight.value, ratio)
-
-    return {
-      key: type,
-      label: focusMetricLabelMap[type],
-      value,
-      barHeight,
-      pointX: focusMetricPointXList[index] ?? focusMetricPointXList[focusMetricPointXList.length - 1],
-      pointY: getFocusMetricPointY(barHeight)
-    }
-  })
-}
-
-const getFocusMetricCards = (section: ProductMetricBlock): FocusMetricCard[] => {
-  return section.highlights.map((highlight) => ({
-    key: highlight.label,
-    title: highlight.label,
-    value: highlight.value,
-    rows: getFocusMetricRows(section, highlight)
-  }))
-}
-
-const getFocusMetricRowsFromAds = (highlight: MetricHighlightItem): FocusMetricRow[] => {
-  const rows = getAdsSummaryRows(highlight)
-  const rawHeights = rows.map((row) => row.width)
-  const minHeight = Math.min(...rawHeights)
-  const maxHeight = Math.max(...rawHeights)
-  const heightRange = Math.max(1, maxHeight - minHeight)
-  return rows.map((row, index) => {
-    const normalizedHeight = (row.width - minHeight) / heightRange
-    const barHeight = Math.round(11 + normalizedHeight * 19)
-
-    return {
-      key: focusMetricTypeOrder[index],
-      label: row.label,
-      value: row.value,
-      barHeight,
-      pointX: focusMetricPointXList[index] ?? focusMetricPointXList[focusMetricPointXList.length - 1],
-      pointY: getFocusMetricPointY(barHeight)
-    }
-  })
-}
-
-const getFocusMetricCardsFromAds = (section: ProductAdsBlock): FocusMetricCard[] => {
-  return section.highlights.map((highlight) => ({
-    key: highlight.label,
-    title: highlight.label,
-    value: highlight.value,
-    rows: getFocusMetricRowsFromAds(highlight)
-  }))
-}
-
-const getFocusMetricChartPoints = (rows: FocusMetricRow[]) => {
-  return rows.map((row) => `${row.pointX},${row.pointY}`).join(' ')
-}
-
-const getFocusMetricChartPath = (rows: FocusMetricRow[]) => {
-  if (!rows.length) return ''
-  if (rows.length === 1) return `M ${rows[0].pointX} ${rows[0].pointY}`
-
-  let path = `M ${rows[0].pointX} ${rows[0].pointY}`
-
-  for (let index = 0; index < rows.length - 1; index += 1) {
-    const current = rows[index]
-    const next = rows[index + 1]
-    const controlX = (current.pointX + next.pointX) / 2
-    path += ` C ${controlX} ${current.pointY}, ${controlX} ${next.pointY}, ${next.pointX} ${next.pointY}`
-  }
-
-  return path
-}
-
-const parseMetricNumber = (value: string) => {
-  const cleaned = String(value).replace(/[$,% ,]/g, '')
-  const parsed = Number(cleaned)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-const formatMetricLike = (sourceValue: string, nextNumber: number) => {
-  const raw = String(sourceValue)
-  const hasDollar = raw.includes('$')
-  const hasPercent = raw.includes('%')
-  const decimalDigits = raw.includes('.') ? (raw.split('.')[1]?.replace(/[^0-9].*$/, '').length ?? 0) : 0
-  const formatted = nextNumber.toLocaleString('en-US', {
-    minimumFractionDigits: decimalDigits,
-    maximumFractionDigits: decimalDigits
-  })
-
-  if (hasDollar) return `$${formatted}`
-  if (hasPercent) return `${formatted}%`
-  return formatted
-}
-
-const scaleMetricValue = (sourceValue: string, factor: number) => {
-  const parsed = parseMetricNumber(sourceValue)
-  if (parsed === null) return sourceValue
-  return formatMetricLike(sourceValue, parsed * factor)
-}
-
-const getSalesModules = (item: ProductOperationItem) => {
-  const totalHighlights = item.sales.highlights
-  const factorMap: Record<string, number> = {
-    销量: 0.72,
-    销售额: 0.71,
-    订单数: 0.72,
-    转化率: 0.88
-  }
-
-  const naturalHighlights = item.sales.highlights.map((highlight) => ({
-    ...highlight,
-    value: scaleMetricValue(highlight.value, factorMap[highlight.label] ?? 0.75),
-    note: highlight.label === '订单数' ? '自然单为主' : highlight.note
-  }))
-
-  return [
-    { key: 'total', title: '总数据', highlights: totalHighlights },
-    { key: 'natural', title: '自然数据', highlights: naturalHighlights }
-  ]
 }
 
 const shortenText = (text: string, max = 26) => {
@@ -366,69 +122,174 @@ const shortenText = (text: string, max = 26) => {
   return source.length > max ? `${source.slice(0, max)}...` : source
 }
 
-const getTemplateReviewChips = (item: ProductOperationItem) => {
-  const comments = item.review.recentComments?.map((comment) => shortenText(comment.content, 24)) ?? []
-  const fallback = [shortenText(item.review.latestTitle, 24), shortenText(item.review.latestContent, 24)].filter(Boolean)
-  return [...comments, ...fallback].slice(0, 4)
-}
-
 const getSequenceNumber = (itemId: string) => {
   const parsed = Number(String(itemId).replace(/\D/g, ''))
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 }
 
-const getCategoryRows = (item: ProductOperationItem) => {
+const getCategoryRows = (item: ParentOperationCard) => {
   const seq = getSequenceNumber(item.id)
   return [
-    { rank: `#${2700 + seq * 19}`, text: 'in Pet Supplies' },
-    { rank: `#${Math.max(1, seq)}`, text: `in ${shortenText(item.productName, 26)}` }
+    { rank: `#${2700 + seq * 19}`, text: 'in Parent ASIN Group' },
+    { rank: `#${Math.max(1, seq)}`, text: `${item.childItems.length} 个子ASIN` }
   ]
 }
 
-const getPreviewCards = (item: ProductOperationItem) => {
-  const buildCompareRows = (compareList: ProductMetricBlock['compareList']) =>
-    compareList.map((bar) => ({
-      label: bar.label,
-      width: Math.max(26, Math.min(100, bar.height * 1.6)),
-      value: bar.value
+const getTaskLevelLabel = (level: TaskLevel) => level === 'risk' ? '高优先级' : '处理中'
+const getTaskLevelClass = (level: TaskLevel) => level === 'risk' ? 'risk' : 'warn'
+
+const buildCompareEvidence = (section: ProductMetricBlock) => {
+  const compareMap = new Map(section.compareList.map((metric) => [metric.type, metric.value]))
+  return `今日 ${compareMap.get('today') ?? '--'} / 近均 ${compareMap.get('avg') ?? '--'} / 上周 ${compareMap.get('lastweek') ?? '--'} / 目标 ${compareMap.get('target') ?? '--'}`
+}
+
+const buildMetricTaskAction = (sectionKey: ExpandSectionKey, label: string) => {
+  if (sectionKey === 'sales') return `优先检查 ${label} 波动原因，联动流量、广告和竞品变化做归因。`
+  if (sectionKey === 'traffic') return `优先确认 ${label} 变化来源，区分自然流量、广告流量和转化承接问题。`
+  return `优先检查 ${label} 对整体投放效果的影响，并记录后续处理动作。`
+}
+
+const buildMetricTasks = (parent: ParentOperationCard, child: ParentOperationCard['childItems'][number], sectionKey: ExpandSectionKey, section: ProductMetricBlock): RuleTask[] => {
+  return section.highlights
+    .filter((highlight) => highlight.status === 'warn' || highlight.status === 'risk')
+    .map((highlight, index) => ({
+      id: `${parent.id}-${child.childAsin}-${sectionKey}-${index}`,
+      title: `${highlight.label}异常波动`,
+      level: (highlight.status === 'risk' ? 'risk' : 'warn') as TaskLevel,
+      trigger: '规则触发',
+      summary: `子ASIN「${child.productName}」在${section.title}中「${highlight.label}」当前为 ${highlight.value}，${highlight.note ?? '出现异常变化'}。`,
+      evidence: [
+        `来源子ASIN：${child.childAsin}`,
+        buildCompareEvidence(section),
+        highlight.note ? `触发说明：${highlight.note}` : '触发说明：当前指标相对基线出现异常波动。'
+      ],
+      action: buildMetricTaskAction(sectionKey, highlight.label),
+      sourceChildAsin: child.childAsin,
+      sourceChildName: child.productName
+    }))
+}
+
+const buildAdsTasks = (parent: ParentOperationCard, child: ParentOperationCard['childItems'][number], sectionKey: ExpandSectionKey, section: ProductAdsBlock): RuleTask[] => {
+  const tasksFromHighlights = section.highlights
+    .filter((highlight) => highlight.status === 'warn' || highlight.status === 'risk')
+    .map((highlight, index) => ({
+      id: `${parent.id}-${child.childAsin}-${sectionKey}-highlight-${index}`,
+      title: `${highlight.label}投放异常`,
+      level: (highlight.status === 'risk' ? 'risk' : 'warn') as TaskLevel,
+      trigger: '规则触发',
+      summary: `子ASIN「${child.productName}」在${section.title}中「${highlight.label}」当前为 ${highlight.value}，${highlight.note ?? '出现异常变化'}。`,
+      evidence: [
+        `来源子ASIN：${child.childAsin}`,
+        `来源说明：${section.sourceNote}`,
+        highlight.note ? `触发说明：${highlight.note}` : '触发说明：当前广告指标相对基线出现异常波动。'
+      ],
+      action: buildMetricTaskAction(sectionKey, highlight.label),
+      sourceChildAsin: child.childAsin,
+      sourceChildName: child.productName
     }))
 
-  return [
-    {
-      key: 'sales',
-      title: item.sales.title,
-      value: item.sales.highlights[0]?.value ?? '--',
-      rows: buildCompareRows(item.sales.compareList)
-    },
-    {
-      key: 'traffic',
-      title: item.traffic.title,
-      value: item.traffic.highlights[0]?.value ?? '--',
-      rows: buildCompareRows(item.traffic.compareList)
-    },
-    {
-      key: 'sp',
-      title: 'SP广告',
-      value: item.spAds.highlights[0]?.value ?? '--',
-      rows: item.spAds.highlights[0] ? getAdsSummaryRows(item.spAds.highlights[0]) : []
-    },
-    {
-      key: 'sbv',
-      title: 'SBV广告',
-      value: item.sbvAds.highlights[0]?.value ?? '--',
-      rows: item.sbvAds.highlights[0] ? getAdsSummaryRows(item.sbvAds.highlights[0]) : []
-    }
-  ]
+  const zeroSalesActivities = section.activityList
+    .filter((activity) => {
+      const cost = parseNumber(activity.cost)
+      const sales = parseNumber(activity.sales)
+      return (cost ?? 0) > 0 && (sales ?? 0) <= 0
+    })
+    .slice(0, 2)
+    .map((activity, index) => ({
+      id: `${parent.id}-${child.childAsin}-${sectionKey}-activity-${index}`,
+      title: '广告活动无转化',
+      level: 'risk' as TaskLevel,
+      trigger: '规则触发',
+      summary: `子ASIN「${child.productName}」的广告活动「${activity.campaignName}」存在有花费无销售。`,
+      evidence: [
+        `来源子ASIN：${child.childAsin}`,
+        `花费 ${activity.cost} / 销售额 ${activity.sales} / 点击 ${activity.clicks} / CVR ${activity.cvr}`,
+        `活动来源：${section.title}`
+      ],
+      action: '优先核查关键词、落地页承接和出价策略，决定暂停、降价或继续观察。',
+      sourceChildAsin: child.childAsin,
+      sourceChildName: child.productName
+    }))
+
+  return [...tasksFromHighlights, ...zeroSalesActivities]
 }
 
+const buildReviewTasks = (parent: ParentOperationCard, child: ParentOperationCard['childItems'][number]): RuleTask[] => {
+  const tasks: RuleTask[] = []
+  const badReviewCount = parseNumber(child.review.badReviewCount) ?? 0
+  const reviewScore = parseNumber(child.review.score) ?? 5
+
+  if (badReviewCount > 0) {
+    tasks.push({
+      id: `${parent.id}-${child.childAsin}-review-bad`,
+      title: '差评风险跟进',
+      level: badReviewCount >= 3 ? 'risk' : 'warn',
+      trigger: '规则触发',
+      summary: `子ASIN「${child.productName}」当前新增/待关注差评 ${badReviewCount} 条，需要分析评价内容与销量、转化是否联动受影响。`,
+      evidence: [
+        `来源子ASIN：${child.childAsin}`,
+        `评分 ${child.review.score} / 评论数 ${child.review.reviewCount} / 差评数 ${child.review.badReviewCount}`,
+        `最近评价：${shortenText(child.review.latestTitle, 20)}｜${shortenText(child.review.latestContent, 36)}`
+      ],
+      action: '优先查看最新差评内容，判断是否涉及质量、安装、物流或描述不符，并记录处理建议。',
+      sourceChildAsin: child.childAsin,
+      sourceChildName: child.productName
+    })
+  }
+
+  if (reviewScore < 4.5) {
+    tasks.push({
+      id: `${parent.id}-${child.childAsin}-review-score`,
+      title: '评分下探预警',
+      level: 'warn',
+      trigger: '规则触发',
+      summary: `子ASIN「${child.productName}」当前评分 ${child.review.score}，低于稳定区间，需要观察是否继续下探。`,
+      evidence: [
+        `来源子ASIN：${child.childAsin}`,
+        `评分 ${child.review.score} / 评论数 ${child.review.reviewCount}`,
+        `最近评价时间：${child.review.latestDate}`
+      ],
+      action: '结合近期新增评价与产品变动，确认评分下探是否会影响转化和广告表现。',
+      sourceChildAsin: child.childAsin,
+      sourceChildName: child.productName
+    })
+  }
+
+  return tasks
+}
+
+const buildSectionTasksFromChild = (
+  parent: ParentOperationCard,
+  child: ParentOperationCard['childItems'][number],
+  section: ExpandSectionKey
+): RuleTask[] => {
+  if (section === 'review') return buildReviewTasks(parent, child)
+  if (section === 'sales') return buildMetricTasks(parent, child, section, child.sales)
+  if (section === 'traffic') return buildMetricTasks(parent, child, section, child.traffic)
+  if (section === 'spAds') return buildAdsTasks(parent, child, section, child.spAds)
+  return buildAdsTasks(parent, child, section, child.sbvAds)
+}
+
+const goToDataPage = (item: ParentOperationCard) => {
+  void router.push({
+    name: 'product-task-detail',
+    params: { id: item.id },
+    query: {
+      name: item.parentProductName,
+      asin: item.parentAsin,
+      owner: item.ownerName || '未分配',
+      childCount: String(item.childItems.length)
+    }
+  })
+}
 </script>
 
 <template>
   <div v-if="hasItems" class="operation-showcase">
     <div class="status-guide">
-      <span class="status-guide-item good"><i></i> 好：当前表现稳定，可常规关注</span>
-      <span class="status-guide-item medium"><i></i> 中：有波动，建议优先看详情</span>
-      <span class="status-guide-item risk"><i></i> 风险：存在明显异常，建议优先处理</span>
+      <span class="status-guide-item good"><i></i> 好：父ASIN下当前未出现明显异常</span>
+      <span class="status-guide-item medium"><i></i> 中：父ASIN下已有子ASIN触发异常任务</span>
+      <span class="status-guide-item risk"><i></i> 风险：父ASIN下存在高优先级异常任务，建议先处理</span>
     </div>
 
     <div class="product-showcase-grid operation-reference-grid">
@@ -442,31 +303,35 @@ const getPreviewCards = (item: ProductOperationItem) => {
         <div class="template-card-shell">
           <div class="template-image-wrap">
             <div v-if="item.productImageUrl" class="template-image-box">
-              <img :src="item.productImageUrl" :alt="item.productName" class="template-product-image" />
+              <img :src="item.productImageUrl" :alt="item.parentProductName" class="template-product-image" />
             </div>
             <div v-else class="template-image-box template-cover-box" :class="`product-cover-${item.coverTone}`">
               <span>{{ item.coverText }}</span>
             </div>
-            <div class="template-play-btn">▶</div>
+            <button class="template-detail-link" @click="goToDataPage(item)">进入数据页</button>
           </div>
 
           <div class="template-title-block">
-            <div class="template-product-title">{{ item.listingTitle || item.productName }}</div>
+            <div class="template-product-title">{{ item.parentProductName }}</div>
             <div class="template-rating-line">
               <span class="template-stars">★★★★★</span>
-              <span class="template-rating-count">{{ item.review.reviewCount }}</span>
+              <span class="template-rating-count">{{ item.childItems.length }} / {{ item.childAsins.length }} 个子ASIN已接入</span>
             </div>
-            <div class="template-offer-line">4 offers from {{ item.listingPrice || '--' }}</div>
+            <div class="template-offer-line">父ASIN：{{ item.parentAsin }}</div>
           </div>
 
           <div class="template-asin-block">
             <div class="template-asin-line">
-              <span>ASIN: {{ item.childAsin }}</span>
+              <span>父ASIN: {{ item.parentAsin }}</span>
               <span class="template-icon-line">◔ ◌ ⌁</span>
             </div>
             <div class="template-brand-line">
               <span>品牌: <strong>{{ item.shopName }}</strong></span>
-              <span class="template-add-badge">加入产品库</span>
+              <span class="template-add-badge">{{ item.hasSbv ? '含SBV' : '无SBV' }}</span>
+            </div>
+            <div class="template-brand-line">
+              <span>归属人: <strong>{{ item.ownerName || '未分配' }}</strong></span>
+              <span class="template-owner-tag">父ASIN卡片</span>
             </div>
           </div>
 
@@ -475,235 +340,63 @@ const getPreviewCards = (item: ProductOperationItem) => {
               <span class="template-rank-no">{{ row.rank }}</span>
               <span class="template-rank-text">{{ row.text }}</span>
             </div>
+            <div class="parent-children-preview">
+              <span class="parent-children-label">子ASIN：</span>
+              <span class="parent-children-text">{{ item.childProductNames.join('、') }}</span>
+            </div>
           </div>
 
           <div class="template-accordion-list">
-            <section class="template-accordion-section">
-              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'review') }" @click="toggleSection(item.id, 'review')">
-                <span>Top highlights <em>（评价信息）</em></span>
-                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'review') }">⌄</span>
+            <section v-for="section in sectionProgressKeys" :key="`${item.id}-${section}`" class="template-accordion-section">
+              <button class="template-accordion-btn" :class="{ done: isRead(item.id, section) }" @click="toggleSection(item.id, section)">
+                <span>{{ getSectionTitle(section) }}</span>
+                <span class="template-accordion-meta">
+                  <em>{{ getItemSectionTasks(item, section).length }} 条</em>
+                  <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, section) }">⌄</span>
+                </span>
               </button>
-              <div v-if="isExpanded(item.id, 'review')" class="template-accordion-panel">
-                <div class="template-chip-grid">
-                  <span v-for="chip in getTemplateReviewChips(item)" :key="`${item.id}-${chip}`" class="template-chip">{{ chip }}</span>
+              <div v-if="isExpanded(item.id, section)" class="template-accordion-panel task-accordion-panel">
+                <div class="template-inline-action task-panel-toolbar">
+                  <div class="task-panel-tip">当前为父ASIN聚合任务区，任意子ASIN命中异常都会汇总到这里。</div>
+                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, section) }" @click="markAsRead(item.id, section)">
+                    {{ isRead(item.id, section) ? '已读' : '标记为已读' }}
+                  </button>
                 </div>
-                <div class="template-inline-action">
-                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'review') }" @click="markAsRead(item.id, 'review')">{{ isRead(item.id, 'review') ? '已读' : '标记为已读' }}</button>
-                </div>
-              </div>
-            </section>
 
-            <section class="template-accordion-section">
-              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'sales') }" @click="toggleSection(item.id, 'sales')">
-                <span>Product specifications <em>（销售数据）</em></span>
-                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'sales') }">⌄</span>
-              </button>
-              <div v-if="isExpanded(item.id, 'sales')" class="template-accordion-panel">
-                <div class="template-inline-action">
-                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'sales') }" @click="markAsRead(item.id, 'sales')">{{ isRead(item.id, 'sales') ? '已读' : '标记为已读' }}</button>
-                </div>
-                <div class="template-focus-metric-grid">
-                  <div v-for="card in getFocusMetricCards(item.sales)" :key="`${item.id}-sales-${card.key}`" class="template-focus-metric-card">
-                    <div class="template-focus-metric-title">{{ card.title }}</div>
-                    <div class="template-focus-metric-main">{{ card.value }}</div>
-                    <div class="template-focus-metric-body">
-                      <div class="template-focus-metric-chart-area">
-                        <div class="template-focus-metric-chart-box">
-                          <span class="template-focus-metric-chart-baseline"></span>
-                          <div class="template-focus-metric-chart-series">
-                            <div v-for="row in card.rows" :key="`${item.id}-sales-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
-                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
-                            </div>
-                          </div>
-                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
-                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
-                          </svg>
-                        </div>
+                <div v-if="getItemSectionTasks(item, section).length" class="task-card-list">
+                  <article
+                    v-for="task in getItemSectionTasks(item, section)"
+                    :key="task.id"
+                    class="task-info-card"
+                    :class="`task-level-${getTaskLevelClass(task.level)}`"
+                  >
+                    <div class="task-info-head">
+                      <div>
+                        <div class="task-info-title">{{ task.title }}</div>
+                        <div class="task-info-trigger">{{ task.trigger }}</div>
                       </div>
+                      <span class="task-info-level" :class="`task-level-${getTaskLevelClass(task.level)}`">{{ getTaskLevelLabel(task.level) }}</span>
                     </div>
-                  </div>
+                    <div class="task-source-chip">来源子ASIN：{{ task.sourceChildName }} / {{ task.sourceChildAsin }}</div>
+                    <div class="task-info-summary">{{ task.summary }}</div>
+                    <ul class="task-info-evidence">
+                      <li v-for="(row, evidenceIndex) in task.evidence" :key="`${task.id}-${evidenceIndex}`">{{ row }}</li>
+                    </ul>
+                    <div class="task-info-action">
+                      <span class="task-info-action-label">建议动作</span>
+                      <span>{{ task.action }}</span>
+                    </div>
+                  </article>
                 </div>
-              </div>
-            </section>
 
-            <section class="template-accordion-section">
-              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'traffic') }" @click="toggleSection(item.id, 'traffic')">
-                <span>About the Brand <em>（流量数据）</em></span>
-                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'traffic') }">⌄</span>
-              </button>
-              <div v-if="isExpanded(item.id, 'traffic')" class="template-accordion-panel">
-                <div class="template-inline-action">
-                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'traffic') }" @click="markAsRead(item.id, 'traffic')">{{ isRead(item.id, 'traffic') ? '已读' : '标记为已读' }}</button>
-                </div>
-                <div class="template-focus-metric-grid">
-                  <div v-for="card in getFocusMetricCards(item.traffic)" :key="`${item.id}-traffic-${card.key}`" class="template-focus-metric-card">
-                    <div class="template-focus-metric-title">{{ card.title }}</div>
-                    <div class="template-focus-metric-main">{{ card.value }}</div>
-                    <div class="template-focus-metric-body">
-                      <div class="template-focus-metric-chart-area">
-                        <div class="template-focus-metric-chart-box">
-                          <span class="template-focus-metric-chart-baseline"></span>
-                          <div class="template-focus-metric-chart-series">
-                            <div v-for="row in card.rows" :key="`${item.id}-traffic-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
-                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
-                            </div>
-                          </div>
-                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
-                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="template-accordion-section">
-              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'spAds') }" @click="toggleSection(item.id, 'spAds')">
-                <span>SP Ads <em>（SP广告）</em></span>
-                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'spAds') }">⌄</span>
-              </button>
-              <div v-if="isExpanded(item.id, 'spAds')" class="template-accordion-panel">
-                <div class="template-inline-action">
-                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'spAds') }" @click="markAsRead(item.id, 'spAds')">{{ isRead(item.id, 'spAds') ? '已读' : '标记为已读' }}</button>
-                </div>
-                <div class="template-focus-metric-grid">
-                  <div v-for="card in getFocusMetricCardsFromAds(item.spAds)" :key="`${item.id}-sp-${card.key}`" class="template-focus-metric-card">
-                    <div class="template-focus-metric-title">{{ card.title }}</div>
-                    <div class="template-focus-metric-main">{{ card.value }}</div>
-                    <div class="template-focus-metric-body">
-                      <div class="template-focus-metric-chart-area">
-                        <div class="template-focus-metric-chart-box">
-                          <span class="template-focus-metric-chart-baseline"></span>
-                          <div class="template-focus-metric-chart-series">
-                            <div v-for="row in card.rows" :key="`${item.id}-sp-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
-                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
-                            </div>
-                          </div>
-                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
-                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="detail-table-tip">SP 广告：按广告ASIN筛选该产品的 SP 活动数据。</div>
-                <div class="detail-table-scroll ads-table-scroll">
-                  <div class="detail-data-table ads-activity-table-wrap">
-                    <div class="detail-table-header">SP广告活动明细</div>
-                    <table class="ads-activity-table sticky-ads-table">
-                      <thead>
-                        <tr>
-                          <th>广告活动名称</th>
-                          <th>曝光量</th>
-                          <th>点击量</th>
-                          <th>点击率 (CTR)</th>
-                          <th>单次点击成本 (CPC)</th>
-                          <th>花费</th>
-                          <th>总销售额</th>
-                          <th>广告投入产出比</th>
-                          <th>总订单数</th>
-                          <th>转化率 (CVR)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="activity in item.spAds.activityList" :key="`sp-${activity.campaignName}`">
-                          <td>
-                            <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
-                            <span v-else>{{ activity.campaignName }}</span>
-                          </td>
-                          <td>{{ activity.impressions }}</td>
-                          <td>{{ activity.clicks }}</td>
-                          <td>{{ activity.ctr }}</td>
-                          <td>{{ activity.cpc }}</td>
-                          <td>{{ activity.cost }}</td>
-                          <td>{{ activity.sales }}</td>
-                          <td>{{ activity.acos }}</td>
-                          <td>{{ activity.orders }}</td>
-                          <td>{{ activity.cvr }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section class="template-accordion-section">
-              <button class="template-accordion-btn" :class="{ done: isRead(item.id, 'sbvAds') }" @click="toggleSection(item.id, 'sbvAds')">
-                <span>SBV Ads <em>（SBV广告）</em></span>
-                <span class="template-accordion-arrow" :class="{ open: isExpanded(item.id, 'sbvAds') }">⌄</span>
-              </button>
-              <div v-if="isExpanded(item.id, 'sbvAds')" class="template-accordion-panel">
-                <div class="template-inline-action">
-                  <button class="section-read-btn template-read-btn" :class="{ done: isRead(item.id, 'sbvAds') }" @click="markAsRead(item.id, 'sbvAds')">{{ isRead(item.id, 'sbvAds') ? '已读' : '标记为已读' }}</button>
-                </div>
-                <div class="template-focus-metric-grid">
-                  <div v-for="card in getFocusMetricCardsFromAds(item.sbvAds)" :key="`${item.id}-sbv-${card.key}`" class="template-focus-metric-card">
-                    <div class="template-focus-metric-title">{{ card.title }}</div>
-                    <div class="template-focus-metric-main">{{ card.value }}</div>
-                    <div class="template-focus-metric-body">
-                      <div class="template-focus-metric-chart-area">
-                        <div class="template-focus-metric-chart-box">
-                          <span class="template-focus-metric-chart-baseline"></span>
-                          <div class="template-focus-metric-chart-series">
-                            <div v-for="row in card.rows" :key="`${item.id}-sbv-chart-${card.key}-${row.key}`" class="template-focus-metric-chart-column">
-                              <span class="template-focus-metric-chart-bar" :style="{ height: `${row.barHeight}px` }"></span>
-                            </div>
-                          </div>
-                          <svg class="template-focus-metric-chart-svg" viewBox="0 0 108 78" preserveAspectRatio="none" aria-hidden="true">
-                            <path class="template-focus-metric-chart-line" :d="getFocusMetricChartPath(card.rows)" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="detail-table-tip">SBV 广告：按单产品广告表读取，剔除首行汇总后展示活动明细。</div>
-                <div class="detail-table-scroll ads-table-scroll">
-                  <div class="detail-data-table ads-activity-table-wrap">
-                    <div class="detail-table-header">SBV广告活动明细</div>
-                    <table class="ads-activity-table sticky-ads-table">
-                      <thead>
-                        <tr>
-                          <th>广告活动名称</th>
-                          <th>曝光量</th>
-                          <th>点击量</th>
-                          <th>点击率 (CTR)</th>
-                          <th>单次点击成本 (CPC)</th>
-                          <th>花费</th>
-                          <th>总销售额</th>
-                          <th>广告投入产出比</th>
-                          <th>总订单数</th>
-                          <th>转化率 (CVR)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="activity in item.sbvAds.activityList" :key="`sbv-${activity.campaignName}`">
-                          <td>
-                            <a v-if="activity.campaignUrl" :href="activity.campaignUrl" target="_blank" rel="noopener noreferrer" class="campaign-link">{{ activity.campaignName }}</a>
-                            <span v-else>{{ activity.campaignName }}</span>
-                          </td>
-                          <td>{{ activity.impressions }}</td>
-                          <td>{{ activity.clicks }}</td>
-                          <td>{{ activity.ctr }}</td>
-                          <td>{{ activity.cpc }}</td>
-                          <td>{{ activity.cost }}</td>
-                          <td>{{ activity.sales }}</td>
-                          <td>{{ activity.acos }}</td>
-                          <td>{{ activity.orders }}</td>
-                          <td>{{ activity.cvr }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                <div v-else class="task-empty-state">
+                  {{ hasChildData(item)
+                    ? '当前父ASIN下未触发该类型异常任务，等待规则命中后再展示子ASIN来源的任务信息。'
+                    : '当前父ASIN卡片已按映射表生成，但该父ASIN下暂无接入的子ASIN运营数据。' }}
                 </div>
               </div>
             </section>
           </div>
-
         </div>
       </article>
     </div>
