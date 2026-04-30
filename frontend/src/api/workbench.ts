@@ -87,16 +87,25 @@ export function fetchLatestDailyReportSheet(params: {
   parentAsin: string
   parentProductName: string
   childProductNames?: string[]
+  reportDate?: string
 }) {
   const query = new URLSearchParams({
     unionId: params.unionId,
     parentAsin: params.parentAsin,
     parentProductName: params.parentProductName
   })
+  if (String(params.reportDate ?? '').trim()) {
+    query.set('reportDate', String(params.reportDate).trim())
+  }
   ;(params.childProductNames ?? []).forEach((name) => {
     if (String(name ?? '').trim()) {
       query.append('childProductNames', name)
     }
   })
   return request<DailyReportProductSheetResponse>(`/api/workbench/daily-report/latest-sheet?${query.toString()}`)
+}
+
+export function fetchDailyReportDates(unionId: string) {
+  const query = new URLSearchParams({ unionId })
+  return request<string[]>(`/api/workbench/daily-report/dates?${query.toString()}`)
 }

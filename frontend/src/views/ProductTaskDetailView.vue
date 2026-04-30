@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getCurrentUser } from '../auth/session'
-import { fetchLatestDailyReportSheet, type DailyReportProductSheetResponse } from '../api/workbench'
+import {
+  fetchDailyReportDates,
+  fetchLatestDailyReportSheet,
+  type DailyReportProductSheetResponse
+} from '../api/workbench'
 import { asinMapping } from '../constants/asinMapping'
 import {
   formatDailyReportMatchConfidence,
@@ -31,6 +35,9 @@ const childProductNames = computed(() => {
 const remoteSheetResponse = ref<DailyReportProductSheetResponse | null>(null)
 const remoteError = ref('')
 const loading = ref(false)
+const reportDates = ref<string[]>([])
+const selectedReportDate = ref('latest')
+const datesLoading = ref(false)
 
 const staticSheetMatchResult = computed(() => {
   return resolveDailyReportSheetForParent({
@@ -54,6 +61,8 @@ const sheetMatchResult = computed(() => {
 
 const matchedSheet = computed(() => sheetMatchResult.value.sheet)
 const matchConfidenceLabel = computed(() => formatDailyReportMatchConfidence(sheetMatchResult.value.confidence))
+const currentUnionId = computed(() => String((getCurrentUser() as any)?.unionId ?? (getCurrentUser() as any)?.unionid ?? '').trim())
+const effectiveReportDate = computed(() => selectedReportDate.value === 'latest' ? '' : selectedReportDate.value)
 
 const normalizedRows = computed(() => {
   const rows = matchedSheet.value?.rows ?? []
@@ -102,10 +111,22 @@ const mergedFirstColumnRows = computed(() => {
   }))
 })
 
-onMounted(async () => {
-  const user = getCurrentUser()
-  const unionId = String((user as any)?.unionId ?? (user as any)?.unionid ?? '').trim()
-  if (!unionId || !parentAsin.value || !productName.value) {
+async function loadReportDates() {
+  if (!currentUnionId.value) {
+    return
+  }
+  datesLoading.value = true
+  try {
+    reportDates.value = await fetchDailyReportDates(currentUnionId.value)
+  } catch {
+    reportDates.value = []
+  } finally {
+    datesLoading.value = false
+  }
+}
+
+async function loadRemoteSheet() {
+  if (!currentUnionId.value || !parentAsin.value || !productName.value) {
     return
   }
 
@@ -113,16 +134,29 @@ onMounted(async () => {
   remoteError.value = ''
   try {
     remoteSheetResponse.value = await fetchLatestDailyReportSheet({
-      unionId,
+      unionId: currentUnionId.value,
       parentAsin: parentAsin.value,
       parentProductName: productName.value,
-      childProductNames: childProductNames.value
+      childProductNames: childProductNames.value,
+      reportDate: effectiveReportDate.value || undefined
     })
   } catch (error) {
     remoteError.value = error instanceof Error ? error.message : String(error)
   } finally {
     loading.value = false
   }
+}
+
+watch(selectedReportDate, async () => {
+  await loadRemoteSheet()
+})
+
+onMounted(async () => {
+  if (!currentUnionId.value || !parentAsin.value || !productName.value) {
+    return
+  }
+  await loadReportDates()
+  await loadRemoteSheet()
 })
 </script>
 
@@ -132,8 +166,22 @@ onMounted(async () => {
       <div class="placeholder-tag">数据页</div>
       <h2 class="placeholder-title">{{ productName }}</h2>
       <p class="placeholder-desc">
-        当前数据页优先展示钉盘文件夹中的最新日报 Sheet；若后端未命中，则回退到本地静态日报 Sheet。
+        当前数据页支持按日报日期筛选，默认展示钉盘中的最新日报；若后端未命中，则回退到本地静态日报 Sheet。
       </p>
+
+      <div class="task-detail-toolbar">
+        <div class="task-detail-toolbar-item">
+          <span>日报日期</span>
+          <select v-model="selectedReportDate" class="task-detail-select" :disabled="datesLoading || loading">
+            <option value="latest">最新日报</option>
+            <option v-for="date in reportDates" :key="date" :value="date">{{ date }}</option>
+          </select>
+        </div>
+        <div class="task-detail-toolbar-tip">
+          <span v-if="datesLoading">正在读取可选日期...</span>
+          <span v-else>可选日期 {{ reportDates.length }} 个</span>
+        </div>
+      </div>
 
       <div class="task-detail-meta-grid compact">
         <div class="task-detail-meta-item">

@@ -555,14 +555,6 @@ onMounted(() => {
       </WorkbenchSection>
 
       <WorkbenchSection title="Amazon运营推进器" desc="模块3重点区：已切到登录态控制可见范围；卡片为父ASIN对象，任意子ASIN异常都会归集到父卡片" badge="模块3重点区">
-        <template #header-extra>
-          <div class="module-date-filter">
-            <label class="module-date-filter-label" for="module-three-date">数据日期</label>
-            <select id="module-three-date" v-model="selectedOperationDate" class="module-date-filter-select">
-              <option v-for="date in operationDateOptions" :key="date" :value="date">{{ date }}</option>
-            </select>
-          </div>
-        </template>
         <OperationDataPanel :items="scopedOperationItems" @progress-change="handleModuleThreeProgressChange" />
         <div class="empty-tip margin-top-16">
           {{ scopedOperationItems.length

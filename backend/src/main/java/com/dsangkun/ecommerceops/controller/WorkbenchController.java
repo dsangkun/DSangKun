@@ -61,9 +61,20 @@ public class WorkbenchController {
             @RequestParam String unionId,
             @RequestParam String parentAsin,
             @RequestParam String parentProductName,
-            @RequestParam(required = false) List<String> childProductNames
+            @RequestParam(required = false) List<String> childProductNames,
+            @RequestParam(required = false) String reportDate
     ) {
+        if (org.springframework.util.StringUtils.hasText(reportDate)) {
+            return ApiResponse.ok(dailyReportService.getProductSheet(unionId, parentAsin, parentProductName, childProductNames, reportDate));
+        }
         return ApiResponse.ok(dailyReportService.getLatestProductSheet(unionId, parentAsin, parentProductName, childProductNames));
+    }
+
+    @GetMapping("/daily-report/dates")
+    public ApiResponse<List<String>> dailyReportDates(
+            @RequestParam String unionId
+    ) {
+        return ApiResponse.ok(dailyReportService.getAvailableReportDates(unionId));
     }
 
     @GetMapping("/daily-report/latest-sheet-debug")
@@ -72,6 +83,7 @@ public class WorkbenchController {
             @RequestParam String parentAsin,
             @RequestParam String parentProductName,
             @RequestParam(required = false) List<String> childProductNames,
+            @RequestParam(required = false) String reportDate,
             @RequestParam(required = false) String latestReportFileId
     ) {
         return ApiResponse.ok(dailyReportService.getLatestProductSheetDebug(
@@ -79,6 +91,7 @@ public class WorkbenchController {
                 parentAsin,
                 parentProductName,
                 childProductNames,
+                reportDate,
                 latestReportFileId
         ));
     }

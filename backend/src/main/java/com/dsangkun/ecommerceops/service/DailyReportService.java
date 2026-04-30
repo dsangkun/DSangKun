@@ -47,23 +47,42 @@ public class DailyReportService {
                                                                  String parentAsin,
                                                                  String parentProductName,
                                                                  List<String> childProductNames) {
-        return buildLatestProductSheet(unionId, parentAsin, parentProductName, childProductNames, null).response();
+        return getProductSheet(unionId, parentAsin, parentProductName, childProductNames, null);
+    }
+
+    public DailyReportProductSheetResponse getProductSheet(String unionId,
+                                                           String parentAsin,
+                                                           String parentProductName,
+                                                           List<String> childProductNames,
+                                                           String reportDate) {
+        return buildProductSheet(unionId, parentAsin, parentProductName, childProductNames, reportDate, null).response();
+    }
+
+    public List<String> getAvailableReportDates(String unionId) {
+        return listExcelFiles(unionId).stream()
+                .map(item -> extractReportDate(item.getName()))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .sorted(Comparator.reverseOrder())
+                .toList();
     }
 
     public Map<String, Object> getLatestProductSheetDebug(String unionId,
                                                           String parentAsin,
                                                           String parentProductName,
                                                           List<String> childProductNames,
+                                                          String reportDate,
                                                           String latestReportFileId) {
         LinkedHashMap<String, Object> debug = new LinkedHashMap<>();
         debug.put("unionId", unionId);
         debug.put("parentAsin", parentAsin);
         debug.put("parentProductName", parentProductName);
         debug.put("childProductNames", childProductNames == null ? List.of() : childProductNames);
+        debug.put("requestedReportDate", reportDate);
         debug.put("manualLatestReportFileId", latestReportFileId);
 
         try {
-            BuildLatestSheetResult result = buildLatestProductSheet(unionId, parentAsin, parentProductName, childProductNames, latestReportFileId);
+            BuildLatestSheetResult result = buildProductSheet(unionId, parentAsin, parentProductName, childProductNames, reportDate, latestReportFileId);
             debug.putAll(result.debug());
             debug.put("success", true);
             debug.put("result", result.response());
@@ -79,11 +98,12 @@ public class DailyReportService {
         }
     }
 
-    private BuildLatestSheetResult buildLatestProductSheet(String unionId,
-                                                           String parentAsin,
-                                                           String parentProductName,
-                                                           List<String> childProductNames,
-                                                           String latestReportFileId) {
+    private BuildLatestSheetResult buildProductSheet(String unionId,
+                                                     String parentAsin,
+                                                     String parentProductName,
+                                                     List<String> childProductNames,
+                                                     String reportDate,
+                                                     String latestReportFileId) {
         LinkedHashMap<String, Object> debug = new LinkedHashMap<>();
 
         String folderId = resolveDailyReportFolderId(unionId);
@@ -100,24 +120,24 @@ public class DailyReportService {
                 .map(this::toDebugFile)
                 .toList());
 
-        DingTalkDriveItemDTO latestFile = resolveLatestFile(excelFiles, latestReportFileId);
-        debug.put("selectedFile", toDebugFile(latestFile));
-        debug.put("selectedBy", StringUtils.hasText(latestReportFileId) ? "manualLatestReportFileId" : "modifiedTime");
+        DingTalkDriveItemDTO selectedFile = resolveReportFile(excelFiles, reportDate, latestReportFileId);
+        debug.put("selectedFile", toDebugFile(selectedFile));
+        debug.put("selectedBy", resolveSelectedBy(reportDate, latestReportFileId));
 
-        String reportDate = extractReportDate(latestFile.getName());
-        if (!StringUtils.hasText(reportDate)) {
-            reportDate = LocalDate.now().toString().replace("-", "");
+        String resolvedReportDate = extractReportDate(selectedFile.getName());
+        if (!StringUtils.hasText(resolvedReportDate)) {
+            resolvedReportDate = StringUtils.hasText(reportDate) ? reportDate : LocalDate.now().toString().replace("-", "");
         }
-        debug.put("resolvedReportDate", reportDate);
+        debug.put("resolvedReportDate", resolvedReportDate);
 
-        byte[] content = dingTalkSdkService.downloadFileBytesBySdk(unionId, dingTalkProperties.getCorpSpaceId(), latestFile.getFileId());
+        byte[] content = dingTalkSdkService.downloadFileBytesBySdk(unionId, dingTalkProperties.getCorpSpaceId(), selectedFile.getFileId());
         debug.put("downloadedBytes", content.length);
 
-        ParsedWorkbookResult parsedWorkbook = parseWorkbook(latestFile.getName(), reportDate, content);
+        ParsedWorkbookResult parsedWorkbook = parseWorkbook(selectedFile.getName(), resolvedReportDate, content);
         debug.put("workbookSheetCount", parsedWorkbook.sheetCount());
         debug.put("workbookSheetNames", parsedWorkbook.sheetNames());
 
-        DailyReportProductSheetResponse response = matchSheet(parentAsin, parentProductName, childProductNames, reportDate, parsedWorkbook.sheetMap());
+        DailyReportProductSheetResponse response = matchSheet(parentAsin, parentProductName, childProductNames, resolvedReportDate, parsedWorkbook.sheetMap());
         debug.put("matchedSheetName", response.sheet() == null ? null : response.sheet().sheetName());
         debug.put("matchedBy", response.matchedBy());
         debug.put("confidence", response.confidence());
@@ -125,6 +145,14 @@ public class DailyReportService {
         debug.put("candidates", response.candidates());
 
         return new BuildLatestSheetResult(response, debug);
+    }
+
+    private List<DingTalkDriveItemDTO> listExcelFiles(String unionId) {
+        String folderId = resolveDailyReportFolderId(unionId);
+        List<DingTalkDriveItemDTO> files = dingTalkDriveClient.listStorageDentries(dingTalkProperties.getCorpSpaceId(), folderId, unionId);
+        return files.stream()
+                .filter(this::isExcelFile)
+                .toList();
     }
 
     private String resolveDailyReportFolderId(String unionId) {
@@ -297,16 +325,34 @@ public class DailyReportService {
         return Instant.EPOCH;
     }
 
-    private DingTalkDriveItemDTO resolveLatestFile(List<DingTalkDriveItemDTO> excelFiles, String latestReportFileId) {
+    private DingTalkDriveItemDTO resolveReportFile(List<DingTalkDriveItemDTO> excelFiles,
+                                                   String reportDate,
+                                                   String latestReportFileId) {
         if (StringUtils.hasText(latestReportFileId)) {
             return excelFiles.stream()
                     .filter(item -> latestReportFileId.equals(item.getFileId()))
                     .findFirst()
                     .orElseGet(() -> new DingTalkDriveItemDTO(latestReportFileId, latestReportFileId, "file", null, null));
         }
+        if (StringUtils.hasText(reportDate)) {
+            return excelFiles.stream()
+                    .filter(item -> reportDate.equals(extractReportDate(item.getName())))
+                    .max(Comparator.comparing(this::resolveSortInstant))
+                    .orElseThrow(() -> new ExternalApiException("DAILY_REPORT_FILE_NOT_FOUND", "未找到指定日期的日报文件：" + reportDate));
+        }
         return excelFiles.stream()
                 .max(Comparator.comparing(this::resolveSortInstant))
                 .orElseThrow(() -> new ExternalApiException("DAILY_REPORT_FILE_NOT_FOUND", "未找到可用的最新日报文件"));
+    }
+
+    private String resolveSelectedBy(String reportDate, String latestReportFileId) {
+        if (StringUtils.hasText(latestReportFileId)) {
+            return "manualLatestReportFileId";
+        }
+        if (StringUtils.hasText(reportDate)) {
+            return "reportDate";
+        }
+        return "modifiedTime";
     }
 
     private Map<String, Object> toDebugFile(DingTalkDriveItemDTO item) {

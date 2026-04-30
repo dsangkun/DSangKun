@@ -286,12 +286,6 @@ const goToDataPage = (item: ParentOperationCard) => {
 
 <template>
   <div v-if="hasItems" class="operation-showcase">
-    <div class="status-guide">
-      <span class="status-guide-item good"><i></i> 好：父ASIN下当前未出现明显异常</span>
-      <span class="status-guide-item medium"><i></i> 中：父ASIN下已有子ASIN触发异常任务</span>
-      <span class="status-guide-item risk"><i></i> 风险：父ASIN下存在高优先级异常任务，建议先处理</span>
-    </div>
-
     <div class="product-showcase-grid operation-reference-grid">
       <article
         v-for="(item, index) in sortedItems"
