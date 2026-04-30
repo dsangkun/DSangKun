@@ -4,11 +4,11 @@ server:
 spring:
   application:
     name: ecommerce-ops-backend
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/ecommerce_ops?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: root123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  cache:
+    type: caffeine
 
 springdoc:
   swagger-ui:
@@ -22,3 +22,20 @@ app:
       - http://localhost:5173
       - http://127.0.0.1:5173
       - http://47.96.135.116
+  temp-dir: D:/Programs/电商运营管理系统/backend/temp
+  cache:
+    dashboard-seconds: 300
+    dingtalk-files-seconds: 60
+
+integration:
+  dingtalk:
+    enabled: true
+    base-url: https://api.dingtalk.com
+    app-key: dingvetjvrcmwmvyox8c
+    app-secret: 12q36TCHIRp55ucYV2_Lu2ElJ8OmkFXXwV3iZijvjBNmqHMvyYjOAKl3hdtShYzn
+    corp-space-id: 28756861180
+    root-folder-id: 0
+    daily-report-folder-id: ${DINGTALK_DAILY_REPORT_FOLDER_ID:}
+    daily-report-folder-name: Amazon广告数据
+    connect-timeout-ms: 5000
+    read-timeout-ms: 15000

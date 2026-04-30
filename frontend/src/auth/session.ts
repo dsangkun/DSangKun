@@ -8,11 +8,14 @@ export type AuthUser = {
   displayName: string
   ownerName: string
   role: AuthRole
+  unionId?: string
 }
 
 type MockAuthAccount = AuthUser & {
   password: string
 }
+
+const DEFAULT_UNION_ID = 'aXcM7iiyEGBkqvsE8FyLkOQiEiE'
 
 const AUTH_STORAGE_KEY = 'ecommerce-ops-auth-user'
 
@@ -24,14 +27,16 @@ export const mockAuthAccounts: MockAuthAccount[] = [
     displayName: '管理员',
     ownerName: '全部',
     role: 'admin',
-    password: '123456'
+    password: '123456',
+    unionId: DEFAULT_UNION_ID
   },
   ...ownerNames.map((name) => ({
     username: name,
     displayName: name,
     ownerName: name,
     role: 'operator' as const,
-    password: '123456'
+    password: '123456',
+    unionId: DEFAULT_UNION_ID
   }))
 ]
 
@@ -78,7 +83,8 @@ export const login = (username: string, password: string) => {
     username: matched.username,
     displayName: matched.displayName,
     ownerName: matched.ownerName,
-    role: matched.role
+    role: matched.role,
+    unionId: matched.unionId ?? DEFAULT_UNION_ID
   }
 
   currentUser.value = user

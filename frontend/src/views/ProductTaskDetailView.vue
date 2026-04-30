@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { dailyReportSheets } from '../constants/dailyReportSheets'
+import { getCurrentUser } from '../auth/session'
+import { fetchLatestDailyReportSheet, type DailyReportProductSheetResponse } from '../api/workbench'
+import { asinMapping } from '../constants/asinMapping'
+import {
+  formatDailyReportMatchConfidence,
+  resolveDailyReportSheetForParent
+} from '../utils/dailyReportSheetMatch'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,9 +18,42 @@ const parentAsin = computed(() => String(route.query.asin ?? '--'))
 const ownerName = computed(() => String(route.query.owner ?? '未分配'))
 const childCount = computed(() => String(route.query.childCount ?? '--'))
 
-const matchedSheet = computed(() => {
-  return dailyReportSheets[productName.value] ?? null
+const mappingRows = computed(() => {
+  return asinMapping.filter((item) => item.parentAsin === parentAsin.value)
 })
+
+const childProductNames = computed(() => {
+  return mappingRows.value
+    .map((item) => item.childProductName)
+    .filter((item) => String(item ?? '').trim().length > 0)
+})
+
+const remoteSheetResponse = ref<DailyReportProductSheetResponse | null>(null)
+const remoteError = ref('')
+const loading = ref(false)
+
+const staticSheetMatchResult = computed(() => {
+  return resolveDailyReportSheetForParent({
+    parentProductName: productName.value,
+    childProductNames: childProductNames.value
+  })
+})
+
+const sheetMatchResult = computed(() => {
+  if (remoteSheetResponse.value) {
+    return {
+      sheet: remoteSheetResponse.value.sheet,
+      matchedBy: remoteSheetResponse.value.matchedBy,
+      confidence: remoteSheetResponse.value.confidence,
+      aliases: remoteSheetResponse.value.aliases,
+      candidates: remoteSheetResponse.value.candidates
+    }
+  }
+  return staticSheetMatchResult.value
+})
+
+const matchedSheet = computed(() => sheetMatchResult.value.sheet)
+const matchConfidenceLabel = computed(() => formatDailyReportMatchConfidence(sheetMatchResult.value.confidence))
 
 const normalizedRows = computed(() => {
   const rows = matchedSheet.value?.rows ?? []
@@ -62,6 +101,29 @@ const mergedFirstColumnRows = computed(() => {
     }))
   }))
 })
+
+onMounted(async () => {
+  const user = getCurrentUser()
+  const unionId = String((user as any)?.unionId ?? (user as any)?.unionid ?? '').trim()
+  if (!unionId || !parentAsin.value || !productName.value) {
+    return
+  }
+
+  loading.value = true
+  remoteError.value = ''
+  try {
+    remoteSheetResponse.value = await fetchLatestDailyReportSheet({
+      unionId,
+      parentAsin: parentAsin.value,
+      parentProductName: productName.value,
+      childProductNames: childProductNames.value
+    })
+  } catch (error) {
+    remoteError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -70,7 +132,7 @@ const mergedFirstColumnRows = computed(() => {
       <div class="placeholder-tag">数据页</div>
       <h2 class="placeholder-title">{{ productName }}</h2>
       <p class="placeholder-desc">
-        当前数据页仅直接展示该父ASIN产品名对应的日报 Sheet，其他区域暂时留白。
+        当前数据页优先展示钉盘文件夹中的最新日报 Sheet；若后端未命中，则回退到本地静态日报 Sheet。
       </p>
 
       <div class="task-detail-meta-grid compact">
@@ -90,6 +152,14 @@ const mergedFirstColumnRows = computed(() => {
           <span>子ASIN数量</span>
           <strong>{{ childCount }}</strong>
         </div>
+        <div class="task-detail-meta-item">
+          <span>匹配置信度</span>
+          <strong>{{ matchConfidenceLabel }}</strong>
+        </div>
+        <div class="task-detail-meta-item">
+          <span>匹配方式</span>
+          <strong>{{ sheetMatchResult.matchedBy }}</strong>
+        </div>
         <div v-if="matchedSheet" class="task-detail-meta-item">
           <span>Sheet 名</span>
           <strong>{{ matchedSheet.sheetName }}</strong>
@@ -98,9 +168,28 @@ const mergedFirstColumnRows = computed(() => {
           <span>来源文件</span>
           <strong>{{ matchedSheet.sourceFile }}</strong>
         </div>
+        <div v-if="matchedSheet && 'reportDate' in matchedSheet" class="task-detail-meta-item">
+          <span>日报日期</span>
+          <strong>{{ (matchedSheet as any).reportDate || '--' }}</strong>
+        </div>
+      </div>
+
+      <div v-if="loading" class="task-empty-state">
+        <div>正在读取钉盘最新日报...</div>
+      </div>
+      <div v-else-if="remoteError" class="task-empty-state">
+        <div>钉盘最新日报读取失败，已回退为本地静态数据。</div>
+        <div class="sheet-match-debug-title">错误信息：{{ remoteError }}</div>
       </div>
 
       <section class="daily-sheet-section">
+        <div v-if="sheetMatchResult.aliases.length" class="sheet-match-helper">
+          <div class="sheet-match-helper-title">当前匹配别名</div>
+          <div class="sheet-match-alias-list">
+            <span v-for="alias in sheetMatchResult.aliases" :key="alias" class="sheet-match-chip">{{ alias }}</span>
+          </div>
+        </div>
+
         <div v-if="matchedSheet" class="daily-sheet-table-wrap">
           <table class="daily-sheet-table">
             <tbody>
@@ -126,7 +215,15 @@ const mergedFirstColumnRows = computed(() => {
         </div>
 
         <div v-else class="task-empty-state">
-          当前未找到与父ASIN产品名“{{ productName }}”完全匹配的 Sheet，数据页暂无法展示该日报内容。
+          <div>当前未匹配到可用 Sheet，数据页暂无法展示该日报内容。</div>
+          <div class="sheet-match-debug-list" v-if="sheetMatchResult.candidates.length">
+            <div class="sheet-match-debug-title">候选 Sheet（前 5 个）</div>
+            <ul>
+              <li v-for="candidate in sheetMatchResult.candidates" :key="candidate.sheetName">
+                {{ candidate.sheetName }}（score={{ candidate.score }}；{{ candidate.reasons.join(' / ') || '无原因' }}）
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
 

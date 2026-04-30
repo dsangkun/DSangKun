@@ -57,3 +57,46 @@ export function fetchOperationData(date?: string) {
 export function fetchOperationDates() {
   return request<string[]>('/api/workbench/operation-dates')
 }
+
+export type DailyReportSheet = {
+  sheetName: string
+  sourceFile: string
+  reportDate: string
+  rows: string[][]
+}
+
+export type DailyReportSheetCandidate = {
+  sheetName: string
+  score: number
+  reasons: string[]
+}
+
+export type DailyReportProductSheetResponse = {
+  parentAsin: string
+  parentProductName: string
+  reportDate: string
+  matchedBy: string
+  confidence: 'high' | 'medium' | 'low' | 'none'
+  aliases: string[]
+  sheet: DailyReportSheet | null
+  candidates: DailyReportSheetCandidate[]
+}
+
+export function fetchLatestDailyReportSheet(params: {
+  unionId: string
+  parentAsin: string
+  parentProductName: string
+  childProductNames?: string[]
+}) {
+  const query = new URLSearchParams({
+    unionId: params.unionId,
+    parentAsin: params.parentAsin,
+    parentProductName: params.parentProductName
+  })
+  ;(params.childProductNames ?? []).forEach((name) => {
+    if (String(name ?? '').trim()) {
+      query.append('childProductNames', name)
+    }
+  })
+  return request<DailyReportProductSheetResponse>(`/api/workbench/daily-report/latest-sheet?${query.toString()}`)
+}

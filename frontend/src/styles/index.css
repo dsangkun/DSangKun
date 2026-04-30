@@ -2994,10 +2994,56 @@ button, input { border: none; outline: none; font-family: inherit; }
   margin-top: 20px;
 }
 
+.sheet-match-helper {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.sheet-match-helper-title,
+.sheet-match-debug-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.sheet-match-alias-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sheet-match-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sheet-match-debug-list {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #4b5563;
+}
+
+.sheet-match-debug-list ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .daily-sheet-table-wrap {
   overflow: auto;
   border: 1px solid #d1d5db;
   background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .daily-sheet-table {
@@ -3010,7 +3056,7 @@ button, input { border: none; outline: none; font-family: inherit; }
 .daily-sheet-cell {
   min-width: 120px;
   padding: 8px 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cfd6df;
   font-size: 13px;
   line-height: 1.5;
   color: #111827;
@@ -3027,8 +3073,8 @@ button, input { border: none; outline: none; font-family: inherit; }
 }
 
 .daily-sheet-cell.col-metric {
-  min-width: 120px;
-  background: #eef7df;
+  min-width: 140px;
+  background: #edf7e3;
   font-weight: 700;
 }
 

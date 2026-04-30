@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "extract:daily-report-sheets": "python ..\\ops\\extract_daily_report_sheets.py"
   },
   "dependencies": {
     "vue": "^3.5.13",

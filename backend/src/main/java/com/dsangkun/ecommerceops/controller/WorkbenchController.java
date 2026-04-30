@@ -2,6 +2,7 @@ package com.dsangkun.ecommerceops.controller;
 
 import com.dsangkun.ecommerceops.common.ApiResponse;
 import com.dsangkun.ecommerceops.dto.*;
+import com.dsangkun.ecommerceops.service.DailyReportService;
 import com.dsangkun.ecommerceops.service.WorkbenchService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -13,9 +14,11 @@ import java.util.List;
 public class WorkbenchController {
 
     private final WorkbenchService workbenchService;
+    private final DailyReportService dailyReportService;
 
-    public WorkbenchController(WorkbenchService workbenchService) {
+    public WorkbenchController(WorkbenchService workbenchService, DailyReportService dailyReportService) {
         this.workbenchService = workbenchService;
+        this.dailyReportService = dailyReportService;
     }
 
     @GetMapping("/overview")
@@ -51,5 +54,32 @@ public class WorkbenchController {
     @GetMapping("/operation-dates")
     public ApiResponse<List<String>> operationDates() {
         return ApiResponse.ok(workbenchService.getOperationDates());
+    }
+
+    @GetMapping("/daily-report/latest-sheet")
+    public ApiResponse<DailyReportProductSheetResponse> latestDailyReportSheet(
+            @RequestParam String unionId,
+            @RequestParam String parentAsin,
+            @RequestParam String parentProductName,
+            @RequestParam(required = false) List<String> childProductNames
+    ) {
+        return ApiResponse.ok(dailyReportService.getLatestProductSheet(unionId, parentAsin, parentProductName, childProductNames));
+    }
+
+    @GetMapping("/daily-report/latest-sheet-debug")
+    public ApiResponse<java.util.Map<String, Object>> latestDailyReportSheetDebug(
+            @RequestParam String unionId,
+            @RequestParam String parentAsin,
+            @RequestParam String parentProductName,
+            @RequestParam(required = false) List<String> childProductNames,
+            @RequestParam(required = false) String latestReportFileId
+    ) {
+        return ApiResponse.ok(dailyReportService.getLatestProductSheetDebug(
+                unionId,
+                parentAsin,
+                parentProductName,
+                childProductNames,
+                latestReportFileId
+        ));
     }
 }
